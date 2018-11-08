@@ -8,7 +8,7 @@ import os
 import pickle
 import numpy as np
 
-from cnn_mnist_solution import mnist, train_and_validate
+from cnn_mnist_solution_tf import mnist, create_the_model, results_dump
 
 logging.basicConfig(level=logging.WARNING)
 
@@ -22,7 +22,7 @@ class MyWorker(Worker):
         super().__init__(*args, **kwargs)
 
         self.x_train, self.y_train, self.x_valid, self.y_valid, self.x_test, self.y_test = mnist(
-            os.path.expanduser(os.sep.join(["~", "data"])), recs=500)
+            os.path.expanduser(os.sep.join(["~", "data"])))
 
         pass
 
@@ -44,12 +44,15 @@ class MyWorker(Worker):
         filter_size = config["filter_size"]
         epochs = budget
 
-        learning_curve, model = train_and_validate(
-            self.x_train, self.y_train, self.x_valid, self.y_valid, epochs, lr, num_filters, filter_size, batch_size)
+        krmodel = create_the_model(self.x_train, self.y_train, filter_size, num_filters)
+
+        krmodel.train(self.x_train, self.y_train, self.x_valid, self.y_valid, lr, epochs, batch_size)
+        
+        final_val_acc = 1 - krmodel.valid_accs[-1]
 
         return ({
             # this is the a mandatory field to run hyperband
-            'loss': learning_curve[-1],
+            'loss': final_val_acc,
             'info': {}  # can be used for any user-defined information - also mandatory
         })
 
@@ -102,10 +105,10 @@ w.run(background=True)
 
 rs = RandomSearch(configspace=w.get_configspace(),
                   run_id='example1', nameserver='127.0.0.1',
-                  min_budget=1, max_budget=1)
+                  min_budget=6, max_budget=6)
 
 # res = rs.run(n_iterations=args.n_iterations)
-res = rs.run(n_iterations=10)
+res = rs.run(n_iterations=50)
 
 # Step 4: Shutdown
 # After the optimizer run, we must shutdown the master and the nameserver.
@@ -124,7 +127,9 @@ incumbent = res.get_incumbent_id()
 print('Best found configuration:', id2config[incumbent]['config'])
 
 # for plotting in notebook
-pickle.dump(res, open('results/hypersearch.pkl', 'wb'))
+results_path = os.path.join(".", "results")
+os.makedirs(results_path, exist_ok=True)
+pickle.dump(res, open(os.path.join(results_path, "hypersearch.pkl"), 'wb'))
 
 
 # %% Train the Incumbent (on combined T+V)
@@ -137,6 +142,12 @@ batch_size = incumbent_config["batch_size"]
 filter_size = incumbent_config["filter_size"]
 epochs = 50 # should be enough
 
+print("Training final model!!!")
+
+incumbent_model = create_the_model(w.x_train, w.y_train, filter_size, num_filters)
+
 # we use the test set as 'validation' here purely to retrieve the final performance
-learning_curve, incumbent_model = train_and_validate(np.vstack([w.x_train, w.x_valid]), np.vstack([w.y_train, w.y_valid]), 
-w.x_test, w.y_test, epochs, lr, num_filters, filter_size, batch_size, save_to='incumbent')
+incumbent_model.train(np.vstack([w.x_train, w.x_valid]), np.vstack([w.y_train, w.y_valid]), w.x_test, w.y_test, lr, epochs, batch_size)
+incumbent_model.save('incumbent')
+
+results_dump(results_path, "incumbent", lr, filter_size, num_filters, batch_size, incumbent_model.valid_accs)
