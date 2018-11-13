@@ -355,8 +355,6 @@ def create_the_model(x, y, filter_size, num_filters):
     return krmodel
 
 
-#%% Parts B and C
-
 if __name__ == '__main__':
     # %% Load Data
 

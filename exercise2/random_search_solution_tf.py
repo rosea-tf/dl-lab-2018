@@ -164,25 +164,3 @@ incumbent_model.save('incumbent')
 
 results_dump(results_path, "incumbent", lr, filter_size, num_filters,
              batch_size, incumbent_model.valid_accs)
-
-
-
-lr = incumbent_config["lr"]
-num_filters = incumbent_config["num_filters"]
-batch_size = incumbent_config["batch_size"]
-filter_size = incumbent_config["filter_size"]
-epochs = 50  # should be enough
-
-print("Training final model!!!")
-
-incumbent_model = create_the_model(w.x_train, w.y_train, filter_size,
-                                   num_filters)
-
-# we use the test set as 'validation' here purely to retrieve the final performance
-incumbent_model.train(
-    np.vstack([w.x_train, w.x_valid]), np.vstack([w.y_train, w.y_valid]),
-    w.x_test, w.y_test, lr, epochs, batch_size)
-incumbent_model.save('incumbent')
-
-results_dump(results_path, "incumbent", lr, filter_size, num_filters,
-             batch_size, incumbent_model.valid_accs)

@@ -6,10 +6,12 @@ Created on Sun Nov 11 14:37:56 2018
 """
 import pickle
 import numpy as np
-import tensorflow as tf
 from pyswarm import pso
 from cnn_mnist_solution_tf import mnist, create_the_model, results_dump
 import os
+
+
+# %% Hyperparameter Model ###################################
 
 np.random.seed(123)
 
@@ -23,8 +25,6 @@ hyper_X = np.array([list(r[2].values()) for r in hyper_dataset])
 hyper_y = np.array([r[1] for r in hyper_dataset]).reshape(-1,1)
 
 # train model of loss <- hypers
-
-# from tf.keras.models import Sequential
 from keras.models import Sequential
 from keras.layers import Dense, Activation
 
@@ -41,7 +41,7 @@ hyper_model.compile(optimizer='rmsprop',
 
 hyper_model.fit(hyper_X, hyper_y, epochs=50)
 
-#%% PSO
+#%% PSO to find argmin x ###################################
 
 
 def pso_obj_fn(x):
@@ -59,15 +59,13 @@ pso_results = pso(pso_obj_fn,
 
 print("PSO done!", pso_results)
 
-
-#################skip this for now
+#%% Train MNIST model ###################################
 
 x_train, y_train, x_valid, y_valid, x_test, y_test = mnist(
             os.path.expanduser(os.sep.join(["~", "data"])))
 
 lr = pso_results[0][0]
 batch_size, filter_size, num_filters = [int(np.round(h, 0)) for h in pso_results[0][1:]]
-
 
 epochs = 50  # should be enough
 
