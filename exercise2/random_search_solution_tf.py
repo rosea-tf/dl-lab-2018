@@ -12,11 +12,10 @@ from cnn_mnist_solution_tf import mnist, create_the_model, results_dump
 
 logging.basicConfig(level=logging.WARNING)
 
-
 # %% Function definitions
 
-class MyWorker(Worker):
 
+class MyWorker(Worker):
     def __init__(self, *args, **kwargs):
 
         super().__init__(*args, **kwargs)
@@ -44,16 +43,19 @@ class MyWorker(Worker):
         filter_size = config["filter_size"]
         epochs = budget
 
-        krmodel = create_the_model(self.x_train, self.y_train, filter_size, num_filters)
+        krmodel = create_the_model(self.x_train, self.y_train, filter_size,
+                                   num_filters)
 
-        krmodel.train(self.x_train, self.y_train, self.x_valid, self.y_valid, lr, epochs, batch_size)
-        
+        krmodel.train(self.x_train, self.y_train, self.x_valid, self.y_valid,
+                      lr, epochs, batch_size)
+
         final_val_acc = 1 - krmodel.valid_accs[-1]
 
         return ({
             # this is the a mandatory field to run hyperband
             'loss': final_val_acc,
-            'info': {}  # can be used for any user-defined information - also mandatory
+            'info':
+            {}  # can be used for any user-defined information - also mandatory
         })
 
     @staticmethod
@@ -66,14 +68,19 @@ class MyWorker(Worker):
         batch_size = CS.hyperparameters.UniformIntegerHyperparameter(
             'batch_size', lower=16, upper=128, default_value=64, log=True)
         num_filters = CS.hyperparameters.UniformIntegerHyperparameter(
-            'num_filters', lower=2**3, upper=2**6, default_value=2**4, log=True)
-        filter_size = CS.hyperparameters.CategoricalHyperparameter('filter_size', [
-                                                                   3, 5])
+            'num_filters',
+            lower=2**3,
+            upper=2**6,
+            default_value=2**4,
+            log=True)
+        filter_size = CS.hyperparameters.CategoricalHyperparameter(
+            'filter_size', [3, 5])
 
         config_space.add_hyperparameters(
             [lr, batch_size, num_filters, filter_size])
 
         return config_space
+
 
 # %% Run hyper search
 
@@ -103,9 +110,12 @@ w.run(background=True)
 #                  run_id='example1', nameserver='127.0.0.1',
 #                  min_budget=int(args.budget), max_budget=int(args.budget))
 
-rs = RandomSearch(configspace=w.get_configspace(),
-                  run_id='example1', nameserver='127.0.0.1',
-                  min_budget=6, max_budget=6)
+rs = RandomSearch(
+    configspace=w.get_configspace(),
+    run_id='example1',
+    nameserver='127.0.0.1',
+    min_budget=6,
+    max_budget=6)
 
 # res = rs.run(n_iterations=args.n_iterations)
 res = rs.run(n_iterations=50)
@@ -131,7 +141,6 @@ results_path = os.path.join(".", "results")
 os.makedirs(results_path, exist_ok=True)
 pickle.dump(res, open(os.path.join(results_path, "hypersearch.pkl"), 'wb'))
 
-
 # %% Train the Incumbent (on combined T+V)
 
 incumbent_config = id2config[incumbent]['config']
@@ -140,14 +149,40 @@ lr = incumbent_config["lr"]
 num_filters = incumbent_config["num_filters"]
 batch_size = incumbent_config["batch_size"]
 filter_size = incumbent_config["filter_size"]
-epochs = 50 # should be enough
+epochs = 50  # should be enough
 
 print("Training final model!!!")
 
-incumbent_model = create_the_model(w.x_train, w.y_train, filter_size, num_filters)
+incumbent_model = create_the_model(w.x_train, w.y_train, filter_size,
+                                   num_filters)
 
 # we use the test set as 'validation' here purely to retrieve the final performance
-incumbent_model.train(np.vstack([w.x_train, w.x_valid]), np.vstack([w.y_train, w.y_valid]), w.x_test, w.y_test, lr, epochs, batch_size)
+incumbent_model.train(
+    np.vstack([w.x_train, w.x_valid]), np.vstack([w.y_train, w.y_valid]),
+    w.x_test, w.y_test, lr, epochs, batch_size)
 incumbent_model.save('incumbent')
 
-results_dump(results_path, "incumbent", lr, filter_size, num_filters, batch_size, incumbent_model.valid_accs)
+results_dump(results_path, "incumbent", lr, filter_size, num_filters,
+             batch_size, incumbent_model.valid_accs)
+
+
+
+lr = incumbent_config["lr"]
+num_filters = incumbent_config["num_filters"]
+batch_size = incumbent_config["batch_size"]
+filter_size = incumbent_config["filter_size"]
+epochs = 50  # should be enough
+
+print("Training final model!!!")
+
+incumbent_model = create_the_model(w.x_train, w.y_train, filter_size,
+                                   num_filters)
+
+# we use the test set as 'validation' here purely to retrieve the final performance
+incumbent_model.train(
+    np.vstack([w.x_train, w.x_valid]), np.vstack([w.y_train, w.y_valid]),
+    w.x_test, w.y_test, lr, epochs, batch_size)
+incumbent_model.save('incumbent')
+
+results_dump(results_path, "incumbent", lr, filter_size, num_filters,
+             batch_size, incumbent_model.valid_accs)

@@ -1,0 +1,232 @@
+login as: rosea
+Last login: Wed Nov  7 23:05:27 2018 from 141.70.47.188
+NetBSD 6.1.5_PATCH (XEN3PAE_DOMU)
+
+Welcome to NetBSD!
+
+[rosea@login2 ~]$ ssh tfpool55
+Welcome to KDE neon User Edition 5.13 (GNU/Linux 4.15.0-24-generic x86_64)
+
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/advantage
+
+1459 Software-Pakete können aktualisiert werden.
+227 Aktualisierungen sind Sicherheitsaktualisierungen.
+
+Your Ubuntu release is not supported anymore.
+For upgrade information, please visit:
+http://www.ubuntu.com/releaseendoflife
+
+New release '18.04.1' available.
+Run 'do-release-upgrade' to upgrade to it.
+
+
+    _/_/_/_/_/  _/_/_/_/
+       _/      _/        Albert-Ludwigs-Universitaet Freiburg
+      _/      _/_/           Technische Fakultaet
+     _/      _/
+    _/      _/                Pool Gebaeude 082-00
+
+  Bei Problemen mit den Rechnern:
+      mailto:poolmgr@informatik.uni-freiburg.de
+      http://poolmgr.informatik.uni-freiburg.de/
+
+Last login: Wed Nov  7 23:05:32 2018 from 132.230.151.7
+[rosea@tfpool55 ~]$ pip3 install --user pso
+Collecting pso
+  Could not find a version that satisfies the requirement pso (from versions: )
+No matching distribution found for pso
+You are using pip version 8.1.1, however version 18.1 is available.
+You should consider upgrading via the 'pip install --upgrade pip' command.
+[rosea@tfpool55 ~]$ pip3 install --user pyswarm
+Collecting pyswarm
+  Downloading https://files.pythonhosted.org/packages/79/1e/254c108b5e65c65d57a83a9a448405ea8b6a6c5c10dada8bcab4e9d9a831/pyswarm-0.6.tar.gz
+Collecting numpy (from pyswarm)
+  Using cached https://files.pythonhosted.org/packages/86/04/bd774106ae0ae1ada68c67efe89f1a16b2aa373cc2db15d974002a9f136d/numpy-1.15.4-cp35-cp35m-manylinux1_x86_64.whl
+Building wheels for collected packages: pyswarm
+  Running setup.py bdist_wheel for pyswarm ... done
+  Stored in directory: /home/rosea/.cache/pip/wheels/37/c5/f6/b33b9ac00040cb95c1f00af982a4197334a672d6de43f4699f
+Successfully built pyswarm
+Installing collected packages: numpy, pyswarm
+Successfully installed numpy-1.15.4 pyswarm-0.6
+You are using pip version 8.1.1, however version 18.1 is available.
+You should consider upgrading via the 'pip install --upgrade pip' command.
+[rosea@tfpool55 ~]$ cd work
+[rosea@tfpool55 work]$ cd lab2
+[rosea@tfpool55 lab2]$ python3 hypermodel.py
+Using TensorFlow backend.
+Epoch 1/50
+2018-11-11 15:08:01.878749: W tensorflow/core/platform/cpu_feature_guard.cc:45] The TensorFlow library wasn't compiled to use SSE4.1 instructions, but these are available on your machine and could speed up CPU computations.
+2018-11-11 15:08:01.878762: W tensorflow/core/platform/cpu_feature_guard.cc:45] The TensorFlow library wasn't compiled to use SSE4.2 instructions, but these are available on your machine and could speed up CPU computations.
+2018-11-11 15:08:01.878766: W tensorflow/core/platform/cpu_feature_guard.cc:45] The TensorFlow library wasn't compiled to use AVX instructions, but these are available on your machine and could speed up CPU computations.
+2018-11-11 15:08:01.878769: W tensorflow/core/platform/cpu_feature_guard.cc:45] The TensorFlow library wasn't compiled to use AVX2 instructions, but these are available on your machine and could speed up CPU computations.
+2018-11-11 15:08:01.878772: W tensorflow/core/platform/cpu_feature_guard.cc:45] The TensorFlow library wasn't compiled to use FMA instructions, but these are available on your machine and could speed up CPU computations.
+2018-11-11 15:08:01.974624: I tensorflow/stream_executor/cuda/cuda_gpu_executor.cc:893] successful NUMA node read from SysFS had negative value (-1), but there must be at least one NUMA node, so returning NUMA node zero
+2018-11-11 15:08:01.974902: I tensorflow/core/common_runtime/gpu/gpu_device.cc:955] Found device 0 with properties:
+name: GeForce GTX 1060 3GB
+major: 6 minor: 1 memoryClockRate (GHz) 1.7085
+pciBusID 0000:01:00.0
+Total memory: 2.95GiB
+Free memory: 2.84GiB
+2018-11-11 15:08:01.974915: I tensorflow/core/common_runtime/gpu/gpu_device.cc:976] DMA: 0
+2018-11-11 15:08:01.974919: I tensorflow/core/common_runtime/gpu/gpu_device.cc:986] 0:   Y
+2018-11-11 15:08:01.974938: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1045] Creating TensorFlow device (/gpu:0) -> (device: 0, name: GeForce GTX 1060 3GB, pci bus id: 0000:01:00.0)
+50/50 [==============================] - 0s 9ms/step - loss: 0.2021
+Epoch 2/50
+50/50 [==============================] - 0s 53us/step - loss: 0.1003
+Epoch 3/50
+50/50 [==============================] - 0s 51us/step - loss: 0.0751
+Epoch 4/50
+50/50 [==============================] - 0s 50us/step - loss: 0.0657
+Epoch 5/50
+50/50 [==============================] - 0s 50us/step - loss: 0.0600
+Epoch 6/50
+50/50 [==============================] - 0s 51us/step - loss: 0.0565
+Epoch 7/50
+50/50 [==============================] - 0s 50us/step - loss: 0.0542
+Epoch 8/50
+50/50 [==============================] - 0s 50us/step - loss: 0.0517
+Epoch 9/50
+50/50 [==============================] - 0s 51us/step - loss: 0.0498
+Epoch 10/50
+50/50 [==============================] - 0s 50us/step - loss: 0.0479
+Epoch 11/50
+50/50 [==============================] - 0s 51us/step - loss: 0.0466
+Epoch 12/50
+50/50 [==============================] - 0s 50us/step - loss: 0.0475
+Epoch 13/50
+50/50 [==============================] - 0s 50us/step - loss: 0.0451
+Epoch 14/50
+50/50 [==============================] - 0s 50us/step - loss: 0.0430
+Epoch 15/50
+50/50 [==============================] - 0s 50us/step - loss: 0.0421
+Epoch 16/50
+50/50 [==============================] - 0s 52us/step - loss: 0.0411
+Epoch 17/50
+50/50 [==============================] - 0s 50us/step - loss: 0.0410
+Epoch 18/50
+50/50 [==============================] - 0s 52us/step - loss: 0.0399
+Epoch 19/50
+50/50 [==============================] - 0s 50us/step - loss: 0.0403
+Epoch 20/50
+50/50 [==============================] - 0s 50us/step - loss: 0.0398
+Epoch 21/50
+50/50 [==============================] - 0s 51us/step - loss: 0.0396
+Epoch 22/50
+50/50 [==============================] - 0s 49us/step - loss: 0.0379
+Epoch 23/50
+50/50 [==============================] - 0s 50us/step - loss: 0.0370
+Epoch 24/50
+50/50 [==============================] - 0s 50us/step - loss: 0.0370
+Epoch 25/50
+50/50 [==============================] - 0s 49us/step - loss: 0.0360
+Epoch 26/50
+50/50 [==============================] - 0s 48us/step - loss: 0.0367
+Epoch 27/50
+50/50 [==============================] - 0s 50us/step - loss: 0.0359
+Epoch 28/50
+50/50 [==============================] - 0s 51us/step - loss: 0.0347
+Epoch 29/50
+50/50 [==============================] - 0s 50us/step - loss: 0.0339
+Epoch 30/50
+50/50 [==============================] - 0s 51us/step - loss: 0.0358
+Epoch 31/50
+50/50 [==============================] - 0s 49us/step - loss: 0.0366
+Epoch 32/50
+50/50 [==============================] - 0s 49us/step - loss: 0.0351
+Epoch 33/50
+50/50 [==============================] - 0s 50us/step - loss: 0.0334
+Epoch 34/50
+50/50 [==============================] - 0s 52us/step - loss: 0.0340
+Epoch 35/50
+50/50 [==============================] - 0s 51us/step - loss: 0.0344
+Epoch 36/50
+50/50 [==============================] - 0s 49us/step - loss: 0.0337
+Epoch 37/50
+50/50 [==============================] - 0s 50us/step - loss: 0.0332
+Epoch 38/50
+50/50 [==============================] - 0s 49us/step - loss: 0.0335
+Epoch 39/50
+50/50 [==============================] - 0s 50us/step - loss: 0.0338
+Epoch 40/50
+50/50 [==============================] - 0s 49us/step - loss: 0.0343
+Epoch 41/50
+50/50 [==============================] - 0s 48us/step - loss: 0.0325
+Epoch 42/50
+50/50 [==============================] - 0s 49us/step - loss: 0.0326
+Epoch 43/50
+50/50 [==============================] - 0s 50us/step - loss: 0.0332
+Epoch 44/50
+50/50 [==============================] - 0s 51us/step - loss: 0.0343
+Epoch 45/50
+50/50 [==============================] - 0s 50us/step - loss: 0.0338
+Epoch 46/50
+50/50 [==============================] - 0s 50us/step - loss: 0.0323
+Epoch 47/50
+50/50 [==============================] - 0s 71us/step - loss: 0.0325
+Epoch 48/50
+50/50 [==============================] - 0s 50us/step - loss: 0.0336
+Epoch 49/50
+50/50 [==============================] - 0s 50us/step - loss: 0.0342
+Epoch 50/50
+50/50 [==============================] - 0s 50us/step - loss: 0.0328
+Stopping search: maximum iterations reached --> 1000
+PSO done! (array([ 0.0999999 , 25.46600079,  5.        , 18.02472619]), -0.64118016)
+... loading data
+... done loading data
+Training experimental model!!!
+2018-11-11 15:08:24.949388: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1045] Creating TensorFlow device (/gpu:0) -> (device: 0, name: GeForce GTX 1060 3GB, pci bus id: 0000:01:00.0)
+Iter 0, Loss= 0.0563, Train. Acc= 0.9835, Val. Acc=0.9807
+Iter 1, Loss= 0.0482, Train. Acc= 0.9843, Val. Acc=0.9785
+Iter 2, Loss= 0.0372, Train. Acc= 0.9879, Val. Acc=0.9839
+Iter 3, Loss= 0.0329, Train. Acc= 0.9892, Val. Acc=0.9838
+Iter 4, Loss= 0.0329, Train. Acc= 0.9888, Val. Acc=0.9836
+Iter 5, Loss= 0.0251, Train. Acc= 0.9915, Val. Acc=0.9854
+Iter 6, Loss= 0.0154, Train. Acc= 0.9947, Val. Acc=0.9876
+Iter 7, Loss= 0.0281, Train. Acc= 0.9906, Val. Acc=0.9827
+Iter 8, Loss= 0.0111, Train. Acc= 0.9960, Val. Acc=0.9890
+Iter 9, Loss= 0.0193, Train. Acc= 0.9935, Val. Acc=0.9871
+Iter 10, Loss= 0.0290, Train. Acc= 0.9915, Val. Acc=0.9855
+Iter 11, Loss= 0.0203, Train. Acc= 0.9936, Val. Acc=0.9849
+Iter 12, Loss= 0.0155, Train. Acc= 0.9948, Val. Acc=0.9860
+Iter 13, Loss= 0.0105, Train. Acc= 0.9967, Val. Acc=0.9882
+Iter 14, Loss= 0.0146, Train. Acc= 0.9951, Val. Acc=0.9872
+Iter 15, Loss= 0.0080, Train. Acc= 0.9971, Val. Acc=0.9886
+Iter 16, Loss= 0.0037, Train. Acc= 0.9987, Val. Acc=0.9886
+Iter 17, Loss= 0.0056, Train. Acc= 0.9982, Val. Acc=0.9880
+Iter 18, Loss= 0.0054, Train. Acc= 0.9987, Val. Acc=0.9892
+Iter 19, Loss= 0.0042, Train. Acc= 0.9986, Val. Acc=0.9900
+Iter 20, Loss= 0.0098, Train. Acc= 0.9970, Val. Acc=0.9870
+Iter 21, Loss= 0.0089, Train. Acc= 0.9976, Val. Acc=0.9895
+Iter 22, Loss= 0.0110, Train. Acc= 0.9965, Val. Acc=0.9874
+Iter 23, Loss= 0.0030, Train. Acc= 0.9990, Val. Acc=0.9899
+Iter 24, Loss= 0.0027, Train. Acc= 0.9992, Val. Acc=0.9907
+Iter 25, Loss= 0.0027, Train. Acc= 0.9991, Val. Acc=0.9904
+Iter 26, Loss= 0.0049, Train. Acc= 0.9983, Val. Acc=0.9889
+Iter 27, Loss= 0.0036, Train. Acc= 0.9987, Val. Acc=0.9903
+Iter 28, Loss= 0.0060, Train. Acc= 0.9980, Val. Acc=0.9886
+Iter 29, Loss= 0.0051, Train. Acc= 0.9982, Val. Acc=0.9890
+Iter 30, Loss= 0.0033, Train. Acc= 0.9990, Val. Acc=0.9899
+Iter 31, Loss= 0.0016, Train. Acc= 0.9995, Val. Acc=0.9918
+Iter 32, Loss= 0.0002, Train. Acc= 0.9999, Val. Acc=0.9916
+Iter 33, Loss= 0.0004, Train. Acc= 0.9999, Val. Acc=0.9921
+Iter 34, Loss= 0.0002, Train. Acc= 0.9999, Val. Acc=0.9915
+Iter 35, Loss= 0.0001, Train. Acc= 1.0000, Val. Acc=0.9927
+Iter 36, Loss= 0.0000, Train. Acc= 1.0000, Val. Acc=0.9924
+Iter 37, Loss= 0.0000, Train. Acc= 1.0000, Val. Acc=0.9924
+Iter 38, Loss= 0.0000, Train. Acc= 1.0000, Val. Acc=0.9923
+Iter 39, Loss= 0.0000, Train. Acc= 1.0000, Val. Acc=0.9923
+Iter 40, Loss= 0.0000, Train. Acc= 1.0000, Val. Acc=0.9923
+Iter 41, Loss= 0.0000, Train. Acc= 1.0000, Val. Acc=0.9923
+Iter 42, Loss= 0.0000, Train. Acc= 1.0000, Val. Acc=0.9924
+Iter 43, Loss= 0.0000, Train. Acc= 1.0000, Val. Acc=0.9923
+Iter 44, Loss= 0.0000, Train. Acc= 1.0000, Val. Acc=0.9923
+Iter 45, Loss= 0.0000, Train. Acc= 1.0000, Val. Acc=0.9923
+Iter 46, Loss= 0.0000, Train. Acc= 1.0000, Val. Acc=0.9923
+Iter 47, Loss= 0.0000, Train. Acc= 1.0000, Val. Acc=0.9923
+Iter 48, Loss= 0.0000, Train. Acc= 1.0000, Val. Acc=0.9923
+Iter 49, Loss= 0.0000, Train. Acc= 1.0000, Val. Acc=0.9923
+Training finished
+Model saved in path: ./experimental/model.ckpt
+[rosea@tfpool55 lab2]$
