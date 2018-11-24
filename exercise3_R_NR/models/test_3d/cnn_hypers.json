@@ -1,0 +1,1 @@
+{"optimiser": "adam", "num_flat_units": 128, "batch_size": 64, "num_filters": 16, "do_augmentation": false, "epochs": 5, "drop_prob": 0, "name": "test_3d", "learning_rate": 1e-05, "conv_repetitions": 2, "use_3d": true, "history_length": 5}

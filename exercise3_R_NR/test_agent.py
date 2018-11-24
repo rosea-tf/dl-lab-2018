@@ -6,8 +6,10 @@ import gym
 import os
 import json
 
-from model import Model
 from utils import *
+
+from train_agent import create_model_1, process_image
+
 
 
 def run_episode(env, agent, rendering=True, max_timesteps=1000):
@@ -18,20 +20,28 @@ def run_episode(env, agent, rendering=True, max_timesteps=1000):
     state = env.reset()
     while True:
         
+        #idea: keep an np.array of last 5 states. expand current one to begin with. then roll, every step.
+        
         # TODO: preprocess the state in the same way than in in your preprocessing in train_agent.py
-        #    state = ...
+        state_g = process_image(state)[np.newaxis, ...]
         
         # TODO: get the action from your agent! If you use discretized actions you need to transform them to continuous
         # actions again. a needs to have a shape like np.array([0.0, 0.0, 0.0])
-        # a = ...
+        a = np.squeeze(agent.run(agent.prediction(), state_g, None))
 
         next_state, r, done, info = env.step(a)   
         episode_reward += r       
         state = next_state
+
+        if step % 100 == 0:
+            print ('step', step)
+
         step += 1
+        
         
         if rendering:
             env.render()
+
 
         if done or step > max_timesteps: 
             break
@@ -44,12 +54,12 @@ if __name__ == "__main__":
     # important: don't set rendering to False for evaluation (you may get corrupted state images from gym)
     rendering = True                      
     
-    n_test_episodes = 15                  # number of episodes to test
+    # n_test_episodes = 15                  # number of episodes to test
+    n_test_episodes = 1
 
-    # TODO: load agent
-    # agent = Model(...)
-    # agent.load("models/agent.ckpt")
-
+    agent = create_model_1((1000, 96, 96, 1), (1000, 3))
+    agent.restore('model_1')
+    
     env = gym.make('CarRacing-v0').unwrapped
 
     episode_rewards = []

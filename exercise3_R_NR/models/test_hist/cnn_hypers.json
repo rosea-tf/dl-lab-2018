@@ -1,0 +1,1 @@
+{"batch_size": 64, "use_3d": false, "do_augmentation": false, "drop_prob": 0, "name": "test_hist", "learning_rate": 1e-05, "epochs": 5, "history_length": 5, "num_filters": 16, "optimiser": "adam", "num_flat_units": 128, "conv_repetitions": 2}

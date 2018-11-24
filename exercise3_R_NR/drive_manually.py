@@ -11,26 +11,35 @@ import gzip
 import json
 
 
+
+
 def key_press(k, mod):
-    global restart
+    global restart, last_accel
     if k == 0xff0d: restart = True
-    if k == key.LEFT:  a[0] = -1.0
-    if k == key.RIGHT: a[0] = +1.0
-    if k == key.UP:    a[1] = +1.0
-    if k == key.DOWN:  a[2] = +0.2
+    if k == key.LEFT:
+        a[0] = -1.0
+    if k == key.RIGHT:
+        a[0] = +1.0
+    if k == key.UP:
+        a[1] = +1.0
+    if k == key.DOWN:  a[2] = +0.4 #stronger brake
 
 def key_release(k, mod):
-    if k == key.LEFT and a[0] == -1.0: a[0] = 0.0
-    if k == key.RIGHT and a[0] == +1.0: a[0] = 0.0
-    if k == key.UP:    a[1] = 0.0
-    if k == key.DOWN:  a[2] = 0.0
+    if k == key.LEFT and a[0] == -1.0:
+        a[0] = 0.0  #release steering
+    if k == key.RIGHT and a[0] == +1.0:
+        a[0] = 0.0  #release steering
+    if k == key.UP:
+        a[1] = 0.0
+    if k == key.DOWN:
+        a[2] = 0.0
 
 
 def store_data(data, datasets_dir="./data"):
     # save data
     if not os.path.exists(datasets_dir):
         os.mkdir(datasets_dir)
-    data_file = os.path.join(datasets_dir, 'data.pkl.gzip')
+    data_file = os.path.join(datasets_dir, 'data-' + datetime.now().strftime("%Y%m%d-%H%M%S") + '.pkl.gzip')
     f = gzip.open(data_file,'wb')
     pickle.dump(data, f)
 
@@ -72,10 +81,12 @@ if __name__ == "__main__":
     env = gym.make('CarRacing-v0').unwrapped
 
     env.reset()
+    
+
     env.viewer.window.on_key_press = key_press
     env.viewer.window.on_key_release = key_release
 
-
+    
     a = np.array([0.0, 0.0, 0.0]).astype('float32')
     
     episode_rewards = []
@@ -84,12 +95,16 @@ if __name__ == "__main__":
         episode_reward = 0
         state = env.reset()
         while True:
-
-            next_state, r, done, info = env.step(a)
+                
+            a_opt = a.copy()
+            if a_opt[0] != 0.0:
+                a_opt[1] *= 0.05
+            
+            next_state, r, done, info = env.step(a_opt)
             episode_reward += r
 
             samples["state"].append(state)            # state has shape (96, 96, 3)
-            samples["action"].append(np.array(a))     # action has shape (1, 3)
+            samples["action"].append(np.array(a_opt))     # action has shape (1, 3)
             samples["next_state"].append(next_state)
             samples["reward"].append(r)
             samples["terminal"].append(done)
@@ -98,7 +113,7 @@ if __name__ == "__main__":
             steps += 1
 
             if steps % 1000 == 0 or done:
-                print("\naction " + str(["{:+0.2f}".format(x) for x in a]))
+                print("\naction " + str(["{:+0.2f}".format(x) for x in a_opt]))
                 print("\nstep {}".format(steps))
 
             if args.collect_data and steps % 5000 == 0:

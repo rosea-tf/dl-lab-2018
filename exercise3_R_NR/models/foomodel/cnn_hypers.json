@@ -1,0 +1,1 @@
+{"batch_size": 64, "epochs": 2, "learning_rate": 0.0001, "optimiser": "adam", "drop_prob": 0.2, "num_flat_units": 128, "num_filters": 16, "conv_repetitions": 2, "use_3d": false, "do_augmentation": false, "name": "foomodel", "history_length": 0}
