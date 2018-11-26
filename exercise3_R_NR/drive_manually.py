@@ -37,19 +37,15 @@ def key_release(k, mod):
 
 def store_data(data, datasets_dir="./data"):
     # save data
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    
     if not os.path.exists(datasets_dir):
         os.mkdir(datasets_dir)
-    data_file = os.path.join(datasets_dir, 'data-' + datetime.now().strftime("%Y%m%d-%H%M%S") + '.pkl.gzip')
+    data_file = os.path.join(datasets_dir, 'data-' + timestamp + '.pkl.gzip')
     f = gzip.open(data_file,'wb')
     pickle.dump(data, f)
 
-
-def save_results(episode_rewards, results_dir="./results"):
-    # save results
-    if not os.path.exists(results_dir):
-        os.mkdir(results_dir)
-
-     # save statistics in a dictionary and write them into a .json file
+    # save statistics in a dictionary and write them into a .json file
     results = dict()
     results["number_episodes"] = len(episode_rewards)
     results["episode_rewards"] = episode_rewards
@@ -57,10 +53,11 @@ def save_results(episode_rewards, results_dir="./results"):
     results["mean_all_episodes"] = np.array(episode_rewards).mean()
     results["std_all_episodes"] = np.array(episode_rewards).std()
  
-    fname = os.path.join(results_dir, "results_manually-%s.json" % datetime.now().strftime("%Y%m%d-%H%M%S"))
+    fname = os.path.join(datasets_dir, "results_manually-%s.json" % timestamp)
     fh = open(fname, "w")
     json.dump(results, fh)
     print('... finished')
+
 
 
 if __name__ == "__main__":
@@ -118,8 +115,8 @@ if __name__ == "__main__":
 
             if args.collect_data and steps % 5000 == 0:
                 print('... saving data')
-                store_data(samples, "./data")
-                save_results(episode_rewards, "./results")
+                store_data(samples, "./drive_manually")
+                # save_results(episode_rewards, "./results")
 
             env.render()
             if done: 

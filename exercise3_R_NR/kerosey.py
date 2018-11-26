@@ -16,6 +16,7 @@ from functools import reduce
 
 # tensor flow likes: [batch, height, width, channels]
 
+
 def compose(*functions):
     return reduce(lambda f, g: lambda x: f(g(x)), functions, lambda x: x)
 
@@ -46,7 +47,9 @@ class Kerosey():
 
     class InputLayer(Layer):
         def __init__(self, x_shape):
-            assert len(x_shape) == 4, "Input should be 4D: [batch, height, width, channels]"
+            assert len(
+                x_shape
+            ) == 4, "Input should be 4D: [batch, height, width, channels]"
             self.shape = x_shape
             self.func = lambda x: x
 
@@ -56,14 +59,16 @@ class Kerosey():
             self.func = lambda x: const * x
 
     class Conv2D(Layer):
-        
         def __init__(self, model, filter_size, num_filters, stride):
             last_layer = model.layers[-1]
             # depth of input gets replaced with num_filters
-            assert len(last_layer.shape) == 4, "Input should be 4D: [batch, height, width, channels]"
-            self.shape = last_layer.shape[:-1] + (num_filters, ) # replace c with d
-                # stride not working, obviously.
-            
+            assert len(
+                last_layer.shape
+            ) == 4, "Input should be 4D: [batch, height, width, channels]"
+            self.shape = last_layer.shape[:-1] + (num_filters,
+                                                  )  # replace c with d
+            # stride not working, obviously.
+
             # for weights, tf likes [height, width, in, out]
             # Q: how will we force weight sharing between input layers?
             self.weights = tf.get_variable(
@@ -71,7 +76,7 @@ class Kerosey():
                 shape=(filter_size, filter_size, last_layer.shape[-1],
                        num_filters),
                 initializer=tf.contrib.layers.xavier_initializer())
-            
+
             self.bias = tf.get_variable(
                 'b' + str(len(model.layers)),
                 shape=(num_filters, ),
@@ -86,11 +91,15 @@ class Kerosey():
     class Conv3D(Layer):
         """we don't take num_filters here: the #outputs will be 
         identical to the so-called input depth"""
-        def __init__(self, model, filter_size, stride):
+
+        def __init__(self, model, filter_size, num_filters, stride):
             last_layer = model.layers[-1]
-            assert len(last_layer.shape) == 4, "Input should be 4D: [batch, height, width, channels]"
-            self.shape = last_layer.shape
-            
+            assert len(
+                last_layer.shape
+            ) == 4, "Input should be 4D: [batch, height, width, channels]"
+            self.shape = last_layer.shape[:-1] + (
+                num_filters * last_layer.shape[-1], )
+
             # Weights are now [Dep x Wid x Hgt x in x out]
             # 'in' will always be 1 here: we convert in_channels to depth
             # likewise, the dimension in depth will be 1, because we want shared weights across
@@ -98,28 +107,47 @@ class Kerosey():
             # this comment will not make sense tomorrow
             self.weights = tf.get_variable(
                 'w' + str(len(model.layers)),
-                shape=(1, filter_size, filter_size, 1, 1),
+                shape=(1, filter_size, filter_size, 1, num_filters),
                 initializer=tf.contrib.layers.xavier_initializer())
-            
+
             # self.bias = tf.get_variable(
-                # 'b' + str(len(model.layers)),
-                # shape=(1, ),
-                # initializer=tf.contrib.layers.xavier_initializer())
-            
+            # 'b' + str(len(model.layers)),
+            # shape=(1, ),
+            # initializer=tf.contrib.layers.xavier_initializer())
+
             # reshape x from [batch, wid, hgt, in]
             # to [batch, dep=in, wid, hgt, 1]
-            self.func = lambda x: tf.transpose(
-                tf.squeeze(
-                    tf.nn.conv3d(
-                    tf.expand_dims(tf.transpose(x, perm=[0, 3, 1, 2]), -1), self.weights, strides=[1, 
-                        1, stride, stride, 1], padding='SAME'), axis=[-1])
-                , perm=[0,2,3,1]
-            )
+
+            def conv3d(x):
+                # move input channel to depth position; create new dummy input channel to replace it
+                # we now have a 5D input [batch, dep, wid, hgt, c]
+                x = tf.expand_dims(tf.transpose(x, perm=[0, 3, 1, 2]), -1)
+
+                # convolve it
+                # note: first and last stride (batch/channel) are "always 1" (thanks tensorflow)
+                # second 1 is image depth
+                x = tf.nn.conv3d(
+                    x,
+                    self.weights,
+                    strides=[1, 1, stride, stride, 1],
+                    padding='SAME')
+
+                # so now we have [batch, dep, wid, hgt, c']
+                # reshape to [batch, wid, hgt, c' * depth]
+                # so that we can use 2d convolutions from now on
+                x = tf.transpose(x, perm=[0, 2, 3, 1, 4])
+                x_shape = tf.shape(x)
+                x = tf.reshape(x, [x_shape[0], x_shape[1], x_shape[2], -1])
+                return x
+
+            self.func = conv3d
 
     class MaxPool(Layer):
         def __init__(self, model, pool_size):
             last_layer = model.layers[-1]
-            assert len(last_layer.shape) == 4, "Input should be 4D: [batch, height, width, channels]"
+            assert len(
+                last_layer.shape
+            ) == 4, "Input should be 4D: [batch, height, width, channels]"
             self.shape = (last_layer.shape[0],
                           ceil(last_layer.shape[1] / pool_size),
                           ceil(last_layer.shape[2] / pool_size),
@@ -140,8 +168,8 @@ class Kerosey():
         def __init__(self, model, drop_prob):
             last_layer = model.layers[-1]
             self.shape = last_layer.shape
-            self.func = lambda x: tf.nn.dropout(x, 1 - drop_prob) # tf.nn.drop takes keep_prob as its argument
-            
+            self.func = lambda x: tf.nn.dropout(x, 1 - drop_prob)  # tf.nn.drop takes keep_prob as its argument
+
     class Flatten(Layer):
         def __init__(self, model):
             last_layer = model.layers[-1]
@@ -176,11 +204,11 @@ class Kerosey():
             self.loss_fn = None
             self.optimiser = None
             self.session = None
-            
+
         def setup_input(self, x_shape, y_shape):
-            
-            x_shape = (None, ) + x_shape[1:] 
-            y_shape = (None, ) + y_shape[1:] 
+
+            x_shape = (None, ) + x_shape[1:]
+            y_shape = (None, ) + y_shape[1:]
 
             self.layers = [Kerosey.InputLayer(x_shape)]
 
@@ -190,7 +218,7 @@ class Kerosey():
         def add_layer(self, layer_type, **kwargs):
             self.layers.append(layer_type(model=self, **kwargs))
 
-        def compile(self, loss='crossentropy'):
+        def compile(self, loss, optimiser, learning_rate):
             self.predictor = reduce(lambda f, g: lambda x: g(f(x)),
                                     [l.func for l in self.layers], lambda x: x)
 
@@ -199,8 +227,25 @@ class Kerosey():
             elif loss == 'mse':
                 self.loss_fn = tf.losses.mean_squared_error
             else:
-                raise("unknown loss")
-                
+                raise ("unknown loss")
+
+            if optimiser == 'sgd':
+                self.optimiser = tf.train.GradientDescentOptimizer(
+                    learning_rate=learning_rate)
+            elif optimiser == 'rmsprop':
+                self.optimiser = tf.train.RMSPropOptimizer(
+                    learning_rate=learning_rate)
+            elif optimiser == 'adam':
+                self.optimiser = tf.train.AdamOptimizer(
+                    learning_rate=learning_rate)
+            else:
+                raise ("unknown optimiser")
+
+            _ = self.optimiser.minimize(self.loss())
+
+            self.session = tf.Session()
+            self.session.run(tf.global_variables_initializer())
+            self.session.run(tf.local_variables_initializer())
             # self.session = tf.Session()
             # self.session.run(tf.global_variables_initializer()) #why both? who knows
 
@@ -209,7 +254,6 @@ class Kerosey():
             self.valid_losses = []
             self.valid_accs = []
             self.test_acc = None
-        
 
         def prediction(self):
             return self.predictor(self.tfp_x)
@@ -224,15 +268,15 @@ class Kerosey():
         def loss(self):
             tf_losses = self.loss_fn(self.tfp_y, self.prediction())
             return tf.reduce_mean(tf_losses)
-        
+
         def run(self, v, x, y=None):
             feed_dict = {self.tfp_x: x}
-            
+
             if y is not None:
                 feed_dict[self.tfp_y] = y
-            
+
             return self.session.run(v, feed_dict=feed_dict)
-        
+
         def crunch(self, x, y, batch_size, results, collect_stats=False):
             rr = None  #this will be a list
 
@@ -254,51 +298,36 @@ class Kerosey():
             else:
                 pass
 
-        def train(self, x_train, y_train, x_valid, y_valid, optimiser, learning_rate, epochs,
-                  batch_size, tensorboard_dir=None):
-            
-            if optimiser == 'sgd':
-                self.optimiser = tf.train.GradientDescentOptimizer(learning_rate=learning_rate)
-            elif optimiser == 'rmsprop':
-                self.optimiser = tf.train.RMSPropOptimizer(learning_rate=learning_rate)
-            elif optimiser == 'adam':
-                self.optimiser = tf.train.AdamOptimizer(learning_rate=learning_rate)
-            else:
-                raise ("unknown optimiser")
-            
-            # if self.session is None:
-            whattheFUCK = self.optimiser.minimize(self.loss())
-            self.session = tf.Session()
-            self.session.run(tf.global_variables_initializer())
-            self.session.run(tf.local_variables_initializer())
+        def train(self,
+                  x_train,
+                  y_train,
+                  x_valid,
+                  y_valid,
+                  epochs,
+                  batch_size,
+                  tensorboard_dir=None):
 
-            # for adam, etc
-            # self.session.run(tf.variables_initializer(self.optimiser.variables()))
-            # self.session.run(tf.local_variables_initializer())
-            # retarded workaround
-            # if isinstance(optimiser, tf.train.AdamOptimizer):
-            #     self.session.run(tf.variables_initializer([optimiser._beta1_power, optimiser._beta2_power]))
-
-            # for fuck's sake
-
-            
-            
             if tensorboard_dir is not None:
-                tf_summ_train_loss = tf.summary.scalar('TrainingLoss', self.loss())
-                tf_summ_train_acc = tf.summary.scalar('TrainingAccuracy', self.accuracy())
-                tf_summ_valid_loss = tf.summary.scalar('ValidationLoss', self.loss())
-                tf_summ_valid_acc = tf.summary.scalar('ValidationAccuracy', self.accuracy())
-                tf_summ_writer = tf.summary.FileWriter(os.path.join('.', tensorboard_dir), self.session.graph)
-            
-            train_loss = self.crunch(
-                    x_train, y_train, batch_size,
-                    [self.loss()], True)
-            
-            print ("Initial loss:", train_loss)
+                tf_summ_train_loss = tf.summary.scalar('TrainingLoss',
+                                                       self.loss())
+                tf_summ_train_acc = tf.summary.scalar('TrainingAccuracy',
+                                                      self.accuracy())
+                tf_summ_valid_loss = tf.summary.scalar('ValidationLoss',
+                                                       self.loss())
+                tf_summ_valid_acc = tf.summary.scalar('ValidationAccuracy',
+                                                      self.accuracy())
+                tf_summ_writer = tf.summary.FileWriter(
+                    os.path.join('.', tensorboard_dir), self.session.graph)
+
+            train_loss = self.crunch(x_train, y_train, batch_size,
+                                     [self.loss()], True)
+
+            print("Initial loss:", train_loss)
 
             for i in range(epochs):
 
-                self.crunch(x_train, y_train, batch_size, self.optimiser.minimize(self.loss()))
+                self.crunch(x_train, y_train, batch_size,
+                            self.optimiser.minimize(self.loss()))
 
                 train_loss, train_acc = self.crunch(
                     x_train, y_train, batch_size,
@@ -307,15 +336,19 @@ class Kerosey():
                 valid_loss, valid_acc = self.crunch(
                     x_valid, y_valid, batch_size,
                     [self.loss(), self.accuracy()], True)
-                
-                if tensorboard_dir is not None: 
-                    tf_summ_train_loss_c, tf_summ_train_acc_c = self.run([tf_summ_train_loss, tf_summ_train_acc], x_train, y_train)
-                    tf_summ_valid_loss_c, tf_summ_valid_acc_c = self.run([tf_summ_valid_loss, tf_summ_valid_acc], x_valid, y_valid)
+
+                if tensorboard_dir is not None:
+                    tf_summ_train_loss_c, tf_summ_train_acc_c = self.run(
+                        [tf_summ_train_loss, tf_summ_train_acc], x_train,
+                        y_train)
+                    tf_summ_valid_loss_c, tf_summ_valid_acc_c = self.run(
+                        [tf_summ_valid_loss, tf_summ_valid_acc], x_valid,
+                        y_valid)
                     tf_summ_writer.add_summary(tf_summ_train_loss_c, i)
                     tf_summ_writer.add_summary(tf_summ_train_acc_c, i)
                     tf_summ_writer.add_summary(tf_summ_valid_loss_c, i)
                     tf_summ_writer.add_summary(tf_summ_valid_acc_c, i)
-                            
+
                 print("Iter " + str(i) + ", Loss= " +
                       "{:.4f}".format(train_loss) + ", Train. Acc= " +
                       "{:.4f}".format(train_acc) +
@@ -335,13 +368,13 @@ class Kerosey():
             pass
 
         def save(self, directory):
-            
+
             dirpath = os.path.join('.', directory)
-            
-            # create result and model folders
+
+            # .create result and model folders
             if not os.path.exists(dirpath):
-                os.mkdir(dirpath)  
-            
+                os.mkdir(dirpath)
+
             save_path = tf.train.Saver().save(
                 self.session, os.path.join(dirpath, 'model.ckpt'))
             print("Model saved in path: %s" % save_path)

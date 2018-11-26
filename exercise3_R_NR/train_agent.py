@@ -5,20 +5,17 @@ import pickle
 import numpy as np
 import os
 import gzip
-import matplotlib.pyplot as plt
 import json
 
 # from model import Model
 import kerosey
-import tensorflow as tf
 from kerosey import Kerosey
-from utils import *
-from tensorboard_evaluation import Evaluation
+from utils import rgb2gray
 
 #%%
 
 
-def read_data(datasets_dir="./data", frac=0.1):
+def read_data(datasets_dir="./drive_manually", frac=0.1):
     """
     This method reads the states and actions recorded in drive_manually.py 
     and splits it into training/ validation set.
@@ -91,7 +88,7 @@ def augment_training_data(x, y):
                                                                axis=0)
 
 
-def preprocessing(X_train, y_train, X_valid, y_valid, history_length=1):
+def preprocessing(X_train, y_train, X_valid, y_valid):
 
     # TODO: preprocess your data here.
     # 1. convert the images in X_train/X_valid to gray scale. If you use rgb2gray() from utils.py, the output shape (96, 96, 1)
@@ -99,9 +96,9 @@ def preprocessing(X_train, y_train, X_valid, y_valid, history_length=1):
     X_train, X_valid = [process_images(x) for x in [X_train, X_valid]]
 
     ### FOR TESTING
-    # X_train, y_train, X_valid, y_valid = [
-        # x[:1000] for x in [X_train, y_train, X_valid, y_valid]
-    # ]
+    X_train, y_train, X_valid, y_valid = [
+        x[:1000] for x in [X_train, y_train, X_valid, y_valid]
+    ]
 
     y_train, y_valid = [process_actions(y) for y in [y_train, y_valid]]
 
@@ -109,8 +106,9 @@ def preprocessing(X_train, y_train, X_valid, y_valid, history_length=1):
 
 
 def create_a_model(X_shape, y_shape, use_3d, conv_repetitions, num_filters,
-                   num_flat_units, drop_prob):
+                   num_flat_units, drop_prob, optimiser, learning_rate):
 
+    print (locals())
     model = Kerosey.LayeredModel()
     model.setup_input(X_shape, y_shape)
 
@@ -120,7 +118,7 @@ def create_a_model(X_shape, y_shape, use_3d, conv_repetitions, num_filters,
     # 96
     if use_3d:
         model.add_layer(
-            Kerosey.Conv3D, filter_size=3, stride=1)
+            Kerosey.Conv3D, filter_size=3, num_filters=num_filters, stride=1)
 
     for rep in range(conv_repetitions):
         model.add_layer(
@@ -136,7 +134,7 @@ def create_a_model(X_shape, y_shape, use_3d, conv_repetitions, num_filters,
         model.add_layer(Kerosey.Dropout, drop_prob=drop_prob)
 
     model.add_layer(Kerosey.Dense, num_units=y_shape[1])
-    model.compile(loss='crossentropy')
+    model.compile(loss='crossentropy', optimiser=optimiser, learning_rate=learning_rate)
 
     return model
 
@@ -182,7 +180,10 @@ def train_a_model(name, do_augmentation, history_length, use_3d,
         conv_repetitions=conv_repetitions,
         num_filters=num_filters,
         num_flat_units=num_flat_units,
-        drop_prob=drop_prob)
+        drop_prob=drop_prob,
+        optimiser=optimiser, 
+        learning_rate=learning_rate
+        )
 
     print("\t... training model")
     model.train(
@@ -190,8 +191,6 @@ def train_a_model(name, do_augmentation, history_length, use_3d,
         y_train=y_train_a,
         x_valid=X_valid_h,
         y_valid=y_valid,
-        optimiser=optimiser,
-        learning_rate=learning_rate,
         epochs=epochs,
         batch_size=batch_size)
 
@@ -215,16 +214,18 @@ def train_a_model(name, do_augmentation, history_length, use_3d,
 import importlib
 import kerosey
 importlib.reload(kerosey)
+import utils
+importlib.reload(utils)
 from kerosey import Kerosey
 # %%
 
 if __name__ == "__main__":
     # read data
-    X_train, y_train, X_valid, y_valid = read_data("./data")
+    X_train, y_train, X_valid, y_valid = read_data("./drive_manually")
 
     # preprocess data
     X_train, y_train, X_valid, y_valid = preprocessing(
-        X_train, y_train, X_valid, y_valid, history_length=1)
+        X_train, y_train, X_valid, y_valid)
 
     #yep
     train_a_model(
@@ -233,10 +234,10 @@ if __name__ == "__main__":
         history_length=5,
         use_3d=True,
         conv_repetitions=2,
-        num_filters=16,
+        num_filters=4,
         num_flat_units=128,
         drop_prob=0,
         optimiser='adam',
         learning_rate=1e-5,
-        epochs=5,
+        epochs=1,
         batch_size=64)
