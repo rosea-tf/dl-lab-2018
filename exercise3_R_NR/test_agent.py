@@ -12,7 +12,21 @@ from train_agent import create_a_model, process_images
 # %%
 
 IMAGE_W, IMAGE_H = 96, 96
-NUM_ACTIONS = 5
+OUTPUT_SIZE = 5
+#(nothing, left, right, accel, brake)
+ACTION_TYPES = np.array([[0.0, 0.0, 0.0], [-1.0, 0.0, 0.0], [1.0, 0.0, 0.0],
+                         [0.0, 1.0, 0.0], [0.0, 0.0, 0.4]])
+
+
+def action_from_prediction(p):
+    """
+    takes a len-5 array from network (nothing, left, right, accel, brake)
+    returns a len-3 action expected by gym (steer L-/R+, accel, brake)
+    """
+    m = np.argmax(
+        p
+    )  # choose most likely action (not sampling from a softmax here... yet)
+    return ACTION_TYPES[m]
 
 
 def retrieve_model(directory):
@@ -25,9 +39,8 @@ def retrieve_model(directory):
     # because tensorflow won't do this for you.
     model = create_a_model(
         X_shape=(2000, IMAGE_W, IMAGE_H, 1 + hypers['history_length']),
-        y_shape=(2000, NUM_ACTIONS),
+        y_shape=(2000, OUTPUT_SIZE),
         use_3d=hypers['use_3d'],
-        conv_repetitions=hypers['conv_repetitions'],
         num_filters=hypers['num_filters'],
         num_flat_units=hypers['num_flat_units'],
         drop_prob=hypers['drop_prob'],
@@ -71,9 +84,11 @@ def run_episode(env, agent, hypers, rendering=True, max_timesteps=1000):
 
         # TODO: get the action from your agent! If you use discretized actions you need to transform them to continuous
         # actions again. a needs to have a shape like np.array([0.0, 0.0, 0.0])
-        a = np.squeeze(agent.run(agent.prediction(), history, None))
+        prediction = np.squeeze(agent.run(agent.prediction(), history, None))
 
-        next_state, r, done, info = env.step(a)
+        action = action_from_prediction(prediction)
+
+        next_state, r, done, info = env.step(action)
         episode_reward += r
         state = next_state
 
@@ -91,6 +106,13 @@ def run_episode(env, agent, hypers, rendering=True, max_timesteps=1000):
     return episode_reward
 
 
+#%%
+if False:
+    # %%
+    agent, hypers = retrieve_model('1a_small')
+
+# %%
+
 # %%
 if __name__ == "__main__":
 
@@ -103,7 +125,7 @@ if __name__ == "__main__":
     # important: don't set rendering to False for evaluation (you may get corrupted state images from gym)
     rendering = True
 
-    n_test_episodes = 15                  # number of episodes to test
+    n_test_episodes = 15  # number of episodes to test
     # n_test_episodes = 1
 
     agent, hypers = retrieve_model(args.directory)
@@ -112,7 +134,7 @@ if __name__ == "__main__":
 
     # %%
     episode_rewards = []
-    
+
     for i in range(n_test_episodes):
         # pass hypers because it contains history_length
         episode_reward = run_episode(env, agent, hypers, rendering=rendering)
@@ -125,8 +147,9 @@ if __name__ == "__main__":
     results["mean"] = np.array(episode_rewards).mean()
     results["std"] = np.array(episode_rewards).std()
 
-    fname = os.path.join("models", directory, "results_bc_agent-%s.json" % datetime.now().strftime(
-        "%Y%m%d-%H%M%S")
+    fname = os.path.join(
+        "models", args.directory,
+        "results_bc_agent-%s.json" % datetime.now().strftime("%Y%m%d-%H%M%S"))
     fh = open(fname, "w")
     json.dump(results, fh)
 

@@ -59,14 +59,18 @@ class Kerosey():
             self.func = lambda x: const * x
 
     class Conv2D(Layer):
-        def __init__(self, model, filter_size, num_filters, stride):
+        def __init__(self, model, filter_size, num_filters, stride, padding='SAME'):
             last_layer = model.layers[-1]
             # depth of input gets replaced with num_filters
             assert len(
                 last_layer.shape
             ) == 4, "Input should be 4D: [batch, height, width, channels]"
-            self.shape = last_layer.shape[:-1] + (num_filters,
-                                                  )  # replace c with d
+            
+            if padding == 'SAME':
+                self.shape = last_layer.shape[:-1] + (num_filters,)  # replace c with d
+            elif padding == 'VALID':
+                self.shape = (last_layer.shape[0], last_layer.shape[1] - filter_size + 1, last_layer.shape[2] - filter_size + 1, num_filters)
+
             # stride not working, obviously.
 
             # for weights, tf likes [height, width, in, out]
@@ -85,7 +89,7 @@ class Kerosey():
             self.func = lambda x: tf.nn.bias_add(
                 tf.nn.conv2d(
                     x, self.weights, strides=[
-                        1, stride, stride, 1], padding='SAME'), self.bias
+                        1, stride, stride, 1], padding=padding), self.bias
             )
 
     class Conv3D(Layer):
@@ -162,7 +166,7 @@ class Kerosey():
         def __init__(self, model):
             last_layer = model.layers[-1]
             self.shape = last_layer.shape
-            self.func = lambda x: tf.nn.relu(x)
+            self.func = lambda x: tf.nn.elu(x)
 
     class Dropout(Layer):
         def __init__(self, model, drop_prob):
@@ -204,6 +208,7 @@ class Kerosey():
             self.loss_fn = None
             self.optimiser = None
             self.session = None
+            self.tfp_drop_prob = tf.placeholder_with_default(0.0, shape=())
 
         def setup_input(self, x_shape, y_shape):
 
@@ -375,13 +380,13 @@ class Kerosey():
             if not os.path.exists(dirpath):
                 os.mkdir(dirpath)
 
-            save_path = tf.train.Saver().save(
+            tf.train.Saver().save(
                 self.session, os.path.join(dirpath, 'model.ckpt'))
-            print("Model saved in path: %s" % save_path)
+            print("Model saved in path: %s" % directory)
             pass
 
         def restore(self, directory):
-            save_path = tf.train.Saver().restore(
+            tf.train.Saver().restore(
                 self.session, os.path.join('.', directory, 'model.ckpt'))
-            print("Model restored from path: %s" % save_path)
+            print("Model restored from path: %s" % directory)
             pass

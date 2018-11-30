@@ -1,1 +1,0 @@
-{"use_3d": false, "drop_prob": 0, "conv_repetitions": 2, "optimiser": "adam", "do_augmentation": true, "batch_size": 64, "name": "test_aug", "num_flat_units": 128, "history_length": 5, "learning_rate": 1e-05, "num_filters": 16, "epochs": 5}
