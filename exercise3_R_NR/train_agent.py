@@ -10,6 +10,13 @@ import json
 
 from kerosey import Kerosey
 
+# %% Delete this later
+
+import importlib
+import kerosey
+importlib.reload(kerosey)
+
+
 #%% Function Definitions
 
 def read_data(datasets_dir="./drive_manually", frac=0.1, toy=False):
@@ -154,27 +161,36 @@ def create_a_model(X_shape, y_shape, use_3d, num_filters,
     # for the first convolution, we can either treat history as image depth (independent weights)
     # or part of a 3d image (shared weights). The latter SHOULD work better.
 
+    if use_3d:
+        model.add_layer(Kerosey.Sequentialise)
 
     for rep, nfs in enumerate(num_filters):
 
-        if use_3d and rep == 0:
-            model.add_layer(
-                # we divide by h_l because Conv3D will produce N filters for EVERY history frame
-                # so this will make the output approximately comparable with Conv2D
-                Kerosey.Conv3D, filter_size=3, num_filters=(nfs // (X_shape[-1])), stride=1)
+        if use_3d:
+            model.add_layer(Kerosey.ConvSeq2D, filter_size=3, num_filters=nfs, stride=1, padding='VALID')
         else:
-            model.add_layer(
-                Kerosey.Conv2D, filter_size=3, num_filters=nfs, stride=1, padding='VALID')
-        
+            model.add_layer(Kerosey.Conv2D, filter_size=3, num_filters=nfs, stride=1, padding='VALID')
+            
         model.add_layer(Kerosey.Relu)
-        model.add_layer(Kerosey.MaxPool, pool_size=2)
+        
+        if use_3d:
+            model.add_layer(Kerosey.MaxPoolSeq, pool_size=2)
+        else:
+            model.add_layer(Kerosey.MaxPool, pool_size=2)
 
-    model.add_layer(Kerosey.Flatten)
+    if use_3d:
+        model.add_layer(Kerosey.FlattenSeq)
+    else:
+        model.add_layer(Kerosey.Flatten)
     
+    if drop_prob > 0:
+        model.add_layer(Kerosey.Dropout, drop_prob=drop_prob)
+
     for num_flats in num_flat_units:
         model.add_layer(Kerosey.Dense, num_units=num_flats)
         model.add_layer(Kerosey.Relu)
 
+    # two dropout points is probably enough
     if drop_prob > 0:
         model.add_layer(Kerosey.Dropout, drop_prob=drop_prob)
 
@@ -268,7 +284,8 @@ def train_a_model(name, do_augmentation, history_length, use_3d,
 
 if __name__ == "__main__":
     # read data
-    X_train, y_train, X_valid, y_valid = read_data("./drive_manually", 0.1, True)
+    # X_train, y_train, X_valid, y_valid = read_data("./drive_manually")
+    X_train, y_train, X_valid, y_valid = read_data("./drive_manually", 0.1, toy=True)
 
 
     quit
@@ -279,40 +296,102 @@ if __name__ == "__main__":
 
     #yep
     # train_a_model(
-        # "1_new1e7",
-        # do_augmentation=True,
-        # history_length=0,
-        # use_3d=False,
-        # num_filters=[64, 64],
-        # num_flat_units=[256],
-        # drop_prob=0,
-        # optimiser='adam',
-        # learning_rate=1e-7,
-        # epochs=20,
-        # batch_size=32)    
+    #     "1_basic",
+    #     do_augmentation=False,
+    #     history_length=0,
+    #     use_3d=False,
+    #     num_filters=[16, 16],
+    #     num_flat_units=[512, 128],
+    #     drop_prob=0,
+    #     optimiser='adam',
+    #     learning_rate=1e-5,
+    #     epochs=20,
+    #     batch_size=32)
     
     # train_a_model(
-        # "1_newsgd",
-        # do_augmentation=True,
-        # history_length=0,
-        # use_3d=False,
-        # num_filters=[64, 64],
-        # num_flat_units=[256],
-        # drop_prob=0,
-        # optimiser='sgd',
-        # learning_rate=1e-7,
-        # epochs=20,
-        # batch_size=32)    
+    #     "2_augmented",
+    #     do_augmentation=True,
+    #     history_length=0,
+    #     use_3d=False,
+    #     num_filters=[16, 16],
+    #     num_flat_units=[512, 128],
+    #     drop_prob=0,
+    #     optimiser='adam',
+    #     learning_rate=1e-5,
+    #     epochs=20,
+    #     batch_size=32)
     
-    train_a_model(
-        "1_filtered",
-        do_augmentation=True,
-        history_length=0,
-        use_3d=False,
-        num_filters=[64, 64, 64],
+    # train_a_model(
+    #     "3a_dropout05",
+    #     do_augmentation=True,
+    #     history_length=0,
+    #     use_3d=False,
+    #     num_filters=[16, 16],
+    #     num_flat_units=[512, 128],
+    #     drop_prob=0.05,
+    #     optimiser='adam',
+    #     learning_rate=1e-5,
+    #     epochs=20,
+    #     batch_size=32)
+    
+    # train_a_model(
+    #     "3b_dropout10",
+    #     do_augmentation=True,
+    #     history_length=0,
+    #     use_3d=False,
+    #     num_filters=[16, 16],
+    #     num_flat_units=[512, 128],
+    #     drop_prob=0.1,
+    #     optimiser='adam',
+    #     learning_rate=1e-5,
+    #     epochs=20,
+    #     batch_size=32)
+    
+    # train_a_model(
+    #     "3c_dropout20",
+    #     do_augmentation=True,
+    #     history_length=0,
+    #     use_3d=False,
+    #     num_filters=[16, 16],
+    #     num_flat_units=[512, 128],
+    #     drop_prob=0.2,
+    #     optimiser='adam',
+    #     learning_rate=1e-5,
+    #     epochs=20,
+    #     batch_size=32)
+    
+    #currently running on 60
+    
+    # train_a_model(
+    #     "4_larger50",
+    #     do_augmentation=True,
+    #     history_length=0,
+    #     use_3d=False,
+    #     num_filters=[24, 24],
+    #     num_flat_units=[768, 128],
+    #     drop_prob=0.2,                      #CHECK THIS
+    #     optimiser='adam',
+    #     learning_rate=1e-5,
+    #     epochs=20,
+    #     batch_size=32)
+    
+    # history 1, 3, 5
+    
+    # 3d history
+    
+    # lstm??
+    
+    
+train_a_model(
+        "test",
+        do_augmentation=False,
+        history_length=2,
+        use_3d=True,
+        num_filters=[5, 5],
         num_flat_units=[256, 128],
         drop_prob=0,
         optimiser='adam',
-        learning_rate=1e-7,
-        epochs=20,
+        learning_rate=1e-5,
+        epochs=3,
         batch_size=32)
+    

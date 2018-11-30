@@ -58,6 +58,31 @@ class Kerosey():
             self.shape = model.layers[-1].shape
             self.func = lambda x: const * x
 
+    class Sequentialise(Layer):
+        """
+        this takes a [batch, width, height, channels] tensor
+        and converts it [timeseq(=channel), batch, width, height, 1] tensor
+        so that historical input images are kept separate in subsequent convolutions
+        """
+        def __init__(self, model):
+            last_layer = model.layers[-1]
+            assert len(last_layer.shape) == 4, "Input should be 4D: [batch, height, width, channels]"
+            self.shape = (last_layer.shape[3], *last_layer.shape[0:3], 1)
+            self.func = lambda x: tf.expand_dims(tf.transpose(x, perm=[3, 0, 1, 2]), -1)
+
+    class FlattenSeq(Layer):
+        """
+        this takes a [timeseq, batch, width, height, channels] tensor
+        and converts it [batch, *]
+        for use when we're ready for dense layers, and not using an LSTM
+        """
+        def __init__(self, model):
+            last_layer = model.layers[-1]
+            assert len(last_layer.shape) == 5, "Input should be 5D"
+            # nultiply out dimensions except the first (batch) one
+            self.shape = (last_layer.shape[1],
+                          last_layer.shape[0] * reduce(lambda x, y: x * y, last_layer.shape[2:], 1))
+            self.func = lambda x: tf.reshape(tf.transpose(x, perm=[1, 0, 2, 3, 4]), (-1, ) + self.shape[1:])
     class Conv2D(Layer):
         def __init__(self, model, filter_size, num_filters, stride, padding='SAME'):
             last_layer = model.layers[-1]
@@ -92,6 +117,49 @@ class Kerosey():
                         1, stride, stride, 1], padding=padding), self.bias
             )
 
+    
+    class ConvSeq2D(Layer):
+        def __init__(self, model, filter_size, num_filters, stride, padding='SAME'):
+            last_layer = model.layers[-1]
+            assert len(
+                last_layer.shape
+            ) == 5, "Input should be 5D: [timeseq, batch, height, width, channels]"
+            
+            if padding == 'SAME':
+                self.shape = last_layer.shape[:-1] + (num_filters,)  # replace c with d
+            elif padding == 'VALID':
+                self.shape = (last_layer.shape[0], last_layer.shape[1], last_layer.shape[2] - filter_size + 1, last_layer.shape[3] - filter_size + 1, num_filters)
+
+            # stride not working, obviously.
+
+            # weights -- same as basic 2d case
+            self.weights = tf.get_variable(
+                'w' + str(len(model.layers)),
+                shape=(filter_size, filter_size, last_layer.shape[-1],
+                       num_filters),
+                initializer=tf.contrib.layers.xavier_initializer())
+
+            self.bias = tf.get_variable(
+                'b' + str(len(model.layers)),
+                shape=(num_filters, ),
+                initializer=tf.contrib.layers.xavier_initializer())
+            
+            def convseq2d(x):
+                # iterate over timeseq
+                result_stack = []
+                
+                for t in range(self.shape[0]):
+                    result = tf.nn.bias_add(tf.nn.conv2d(
+                    x[t], self.weights, strides=[
+                        1, stride, stride, 1], padding=padding), self.bias)
+                    result_stack.append(result)
+
+
+                return tf.stack(result_stack, axis=0)
+            
+            self.func = convseq2d
+
+    
     class Conv3D(Layer):
         """we don't take num_filters here: the #outputs will be 
         identical to the so-called input depth"""
@@ -162,6 +230,34 @@ class Kerosey():
                 x, ksize=pool_shape,
                 strides=pool_shape, padding='SAME')
 
+    class MaxPoolSeq(Layer):
+        """tf demands 4d for maxpool, so it seems we have to wrap the 5d case..."""
+        def __init__(self, model, pool_size):
+            last_layer = model.layers[-1]
+            assert len(
+                last_layer.shape
+            ) == 5, "Input should be 5D"
+            
+            self.shape = (last_layer.shape[0], last_layer.shape[1],
+                          ceil(last_layer.shape[2] / pool_size),
+                          ceil(last_layer.shape[3] / pool_size),
+                          last_layer.shape[4])
+            
+            pool_shape = (1, pool_size, pool_size, 1)
+
+            def maxpoolseq(x):
+                # iterate over timeseq
+                result_stack = []
+                
+                for t in range(self.shape[0]):
+                    result = tf.nn.max_pool(x[t], ksize=pool_shape, strides=pool_shape, padding='SAME')
+                    result_stack.append(result)
+
+                return tf.stack(result_stack, axis=0)
+
+            self.func = maxpoolseq
+
+
     class Relu(Layer):
         def __init__(self, model):
             last_layer = model.layers[-1]
@@ -172,7 +268,11 @@ class Kerosey():
         def __init__(self, model, drop_prob):
             last_layer = model.layers[-1]
             self.shape = last_layer.shape
-            self.func = lambda x: tf.nn.dropout(x, 1 - drop_prob)  # tf.nn.drop takes keep_prob as its argument
+            model.val_drop_prob = drop_prob # this is ugly but it will do.
+            # means that layers will all share the same drop prob.
+            
+            # tf.nn.drop takes keep_prob as its argument, so we do (1 - p)
+            self.func = lambda x: tf.nn.dropout(x, 1 - model.tfp_drop_prob)  
 
     class Flatten(Layer):
         def __init__(self, model):
@@ -209,6 +309,7 @@ class Kerosey():
             self.optimiser = None
             self.session = None
             self.tfp_drop_prob = tf.placeholder_with_default(0.0, shape=())
+            self.val_drop_prob = 0.0
 
         def setup_input(self, x_shape, y_shape):
 
@@ -274,20 +375,25 @@ class Kerosey():
             tf_losses = self.loss_fn(self.tfp_y, self.prediction())
             return tf.reduce_mean(tf_losses)
 
-        def run(self, v, x, y=None):
+        def run(self, v, x, y=None, train_mode=False):
             feed_dict = {self.tfp_x: x}
-
+            
             if y is not None:
                 feed_dict[self.tfp_y] = y
 
+            if train_mode and self.val_drop_prob > 0:
+                feed_dict[self.tfp_drop_prob] = self.val_drop_prob
+            else:
+                feed_dict[self.tfp_drop_prob] = 0.0
+                
             return self.session.run(v, feed_dict=feed_dict)
 
-        def crunch(self, x, y, batch_size, results, collect_stats=False):
+        def crunch(self, x, y, batch_size, results, train_mode=False, collect_stats=False):
             rr = None  #this will be a list
 
             for x_batch, y_batch in make_batches(x, y, batch_size):
 
-                r = self.run(results, x_batch, y_batch)
+                r = self.run(results, x_batch, y_batch, train_mode)
 
                 if collect_stats:
                     if rr is None:
@@ -323,24 +429,26 @@ class Kerosey():
                                                       self.accuracy())
                 tf_summ_writer = tf.summary.FileWriter(
                     os.path.join('.', tensorboard_dir), self.session.graph)
-
+            
             train_loss = self.crunch(x_train, y_train, batch_size,
-                                     [self.loss()], True)
+                                     [self.loss()], train_mode=True, collect_stats=True)
 
             print("Initial loss:", train_loss)
 
             for i in range(epochs):
 
                 self.crunch(x_train, y_train, batch_size,
-                            self.optimiser.minimize(self.loss()))
-
+                            self.optimiser.minimize(self.loss()), collect_stats=False)
+                
+                # dropout (if any) activated (via train_mode)
                 train_loss, train_acc = self.crunch(
                     x_train, y_train, batch_size,
-                    [self.loss(), self.accuracy()], True)
+                    [self.loss(), self.accuracy()], train_mode=True, collect_stats=True)
 
+                # dropout deactivated
                 valid_loss, valid_acc = self.crunch(
                     x_valid, y_valid, batch_size,
-                    [self.loss(), self.accuracy()], True)
+                    [self.loss(), self.accuracy()], train_mode=False, collect_stats=True)
 
                 if tensorboard_dir is not None:
                     tf_summ_train_loss_c, tf_summ_train_acc_c = self.run(
@@ -368,7 +476,7 @@ class Kerosey():
 
         def test(self, x_test, y_test, batch_size=1024):
             self.test_acc = self.crunch(x_test, y_test, batch_size,
-                                        [self.accuracy()], True)
+                                        [self.accuracy()], train_mode=False, collect_stats=True)
             print("Test Accuracy {:4f}".format(self.test_acc))
             pass
 
