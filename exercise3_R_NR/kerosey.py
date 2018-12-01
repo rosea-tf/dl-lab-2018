@@ -64,37 +64,36 @@ class Kerosey():
         and converts it [timeseq(=channel), batch, width, height, 1] tensor
         so that historical input images are kept separate in subsequent convolutions
         """
+
         def __init__(self, model):
             last_layer = model.layers[-1]
-            assert len(last_layer.shape) == 4, "Input should be 4D: [batch, height, width, channels]"
+            assert len(
+                last_layer.shape
+            ) == 4, "Input should be 4D: [batch, height, width, channels]"
             self.shape = (last_layer.shape[3], *last_layer.shape[0:3], 1)
             self.func = lambda x: tf.expand_dims(tf.transpose(x, perm=[3, 0, 1, 2]), -1)
 
-    class FlattenSeq(Layer):
-        """
-        this takes a [timeseq, batch, width, height, channels] tensor
-        and converts it [batch, *]
-        for use when we're ready for dense layers, and not using an LSTM
-        """
-        def __init__(self, model):
-            last_layer = model.layers[-1]
-            assert len(last_layer.shape) == 5, "Input should be 5D"
-            # nultiply out dimensions except the first (batch) one
-            self.shape = (last_layer.shape[1],
-                          last_layer.shape[0] * reduce(lambda x, y: x * y, last_layer.shape[2:], 1))
-            self.func = lambda x: tf.reshape(tf.transpose(x, perm=[1, 0, 2, 3, 4]), (-1, ) + self.shape[1:])
     class Conv2D(Layer):
-        def __init__(self, model, filter_size, num_filters, stride, padding='SAME'):
+        def __init__(self,
+                     model,
+                     filter_size,
+                     num_filters,
+                     stride,
+                     padding='SAME'):
             last_layer = model.layers[-1]
             # depth of input gets replaced with num_filters
             assert len(
                 last_layer.shape
             ) == 4, "Input should be 4D: [batch, height, width, channels]"
-            
+
             if padding == 'SAME':
-                self.shape = last_layer.shape[:-1] + (num_filters,)  # replace c with d
+                self.shape = last_layer.shape[:-1] + (num_filters,
+                                                      )  # replace c with d
             elif padding == 'VALID':
-                self.shape = (last_layer.shape[0], last_layer.shape[1] - filter_size + 1, last_layer.shape[2] - filter_size + 1, num_filters)
+                self.shape = (last_layer.shape[0],
+                              last_layer.shape[1] - filter_size + 1,
+                              last_layer.shape[2] - filter_size + 1,
+                              num_filters)
 
             # stride not working, obviously.
 
@@ -117,18 +116,26 @@ class Kerosey():
                         1, stride, stride, 1], padding=padding), self.bias
             )
 
-    
     class ConvSeq2D(Layer):
-        def __init__(self, model, filter_size, num_filters, stride, padding='SAME'):
+        def __init__(self,
+                     model,
+                     filter_size,
+                     num_filters,
+                     stride,
+                     padding='SAME'):
             last_layer = model.layers[-1]
             assert len(
                 last_layer.shape
             ) == 5, "Input should be 5D: [timeseq, batch, height, width, channels]"
-            
+
             if padding == 'SAME':
-                self.shape = last_layer.shape[:-1] + (num_filters,)  # replace c with d
+                self.shape = last_layer.shape[:-1] + (num_filters,
+                                                      )  # replace c with d
             elif padding == 'VALID':
-                self.shape = (last_layer.shape[0], last_layer.shape[1], last_layer.shape[2] - filter_size + 1, last_layer.shape[3] - filter_size + 1, num_filters)
+                self.shape = (last_layer.shape[0], last_layer.shape[1],
+                              last_layer.shape[2] - filter_size + 1,
+                              last_layer.shape[3] - filter_size + 1,
+                              num_filters)
 
             # stride not working, obviously.
 
@@ -143,76 +150,23 @@ class Kerosey():
                 'b' + str(len(model.layers)),
                 shape=(num_filters, ),
                 initializer=tf.contrib.layers.xavier_initializer())
-            
+
             def convseq2d(x):
                 # iterate over timeseq
                 result_stack = []
-                
+
                 for t in range(self.shape[0]):
-                    result = tf.nn.bias_add(tf.nn.conv2d(
-                    x[t], self.weights, strides=[
-                        1, stride, stride, 1], padding=padding), self.bias)
+                    result = tf.nn.bias_add(
+                        tf.nn.conv2d(
+                            x[t],
+                            self.weights,
+                            strides=[1, stride, stride, 1],
+                            padding=padding), self.bias)
                     result_stack.append(result)
 
-
                 return tf.stack(result_stack, axis=0)
-            
+
             self.func = convseq2d
-
-    
-    class Conv3D(Layer):
-        """we don't take num_filters here: the #outputs will be 
-        identical to the so-called input depth"""
-
-        def __init__(self, model, filter_size, num_filters, stride):
-            last_layer = model.layers[-1]
-            assert len(
-                last_layer.shape
-            ) == 4, "Input should be 4D: [batch, height, width, channels]"
-            self.shape = last_layer.shape[:-1] + (
-                num_filters * last_layer.shape[-1], )
-
-            # Weights are now [Dep x Wid x Hgt x in x out]
-            # 'in' will always be 1 here: we convert in_channels to depth
-            # likewise, the dimension in depth will be 1, because we want shared weights across
-            # the depth of the history
-            # this comment will not make sense tomorrow
-            self.weights = tf.get_variable(
-                'w' + str(len(model.layers)),
-                shape=(1, filter_size, filter_size, 1, num_filters),
-                initializer=tf.contrib.layers.xavier_initializer())
-
-            # self.bias = tf.get_variable(
-            # 'b' + str(len(model.layers)),
-            # shape=(1, ),
-            # initializer=tf.contrib.layers.xavier_initializer())
-
-            # reshape x from [batch, wid, hgt, in]
-            # to [batch, dep=in, wid, hgt, 1]
-
-            def conv3d(x):
-                # move input channel to depth position; create new dummy input channel to replace it
-                # we now have a 5D input [batch, dep, wid, hgt, c]
-                x = tf.expand_dims(tf.transpose(x, perm=[0, 3, 1, 2]), -1)
-
-                # convolve it
-                # note: first and last stride (batch/channel) are "always 1" (thanks tensorflow)
-                # second 1 is image depth
-                x = tf.nn.conv3d(
-                    x,
-                    self.weights,
-                    strides=[1, 1, stride, stride, 1],
-                    padding='SAME')
-
-                # so now we have [batch, dep, wid, hgt, c']
-                # reshape to [batch, wid, hgt, c' * depth]
-                # so that we can use 2d convolutions from now on
-                x = tf.transpose(x, perm=[0, 2, 3, 1, 4])
-                x_shape = tf.shape(x)
-                x = tf.reshape(x, [x_shape[0], x_shape[1], x_shape[2], -1])
-                return x
-
-            self.func = conv3d
 
     class MaxPool(Layer):
         def __init__(self, model, pool_size):
@@ -232,31 +186,33 @@ class Kerosey():
 
     class MaxPoolSeq(Layer):
         """tf demands 4d for maxpool, so it seems we have to wrap the 5d case..."""
+
         def __init__(self, model, pool_size):
             last_layer = model.layers[-1]
-            assert len(
-                last_layer.shape
-            ) == 5, "Input should be 5D"
-            
+            assert len(last_layer.shape) == 5, "Input should be 5D"
+
             self.shape = (last_layer.shape[0], last_layer.shape[1],
                           ceil(last_layer.shape[2] / pool_size),
                           ceil(last_layer.shape[3] / pool_size),
                           last_layer.shape[4])
-            
+
             pool_shape = (1, pool_size, pool_size, 1)
 
             def maxpoolseq(x):
                 # iterate over timeseq
                 result_stack = []
-                
+
                 for t in range(self.shape[0]):
-                    result = tf.nn.max_pool(x[t], ksize=pool_shape, strides=pool_shape, padding='SAME')
+                    result = tf.nn.max_pool(
+                        x[t],
+                        ksize=pool_shape,
+                        strides=pool_shape,
+                        padding='SAME')
                     result_stack.append(result)
 
                 return tf.stack(result_stack, axis=0)
 
             self.func = maxpoolseq
-
 
     class Relu(Layer):
         def __init__(self, model):
@@ -268,11 +224,11 @@ class Kerosey():
         def __init__(self, model, drop_prob):
             last_layer = model.layers[-1]
             self.shape = last_layer.shape
-            model.val_drop_prob = drop_prob # this is ugly but it will do.
+            model.val_drop_prob = drop_prob  # this is ugly but it will do.
             # means that layers will all share the same drop prob.
-            
+
             # tf.nn.drop takes keep_prob as its argument, so we do (1 - p)
-            self.func = lambda x: tf.nn.dropout(x, 1 - model.tfp_drop_prob)  
+            self.func = lambda x: tf.nn.dropout(x, 1 - model.tfp_drop_prob)
 
     class Flatten(Layer):
         def __init__(self, model):
@@ -283,10 +239,33 @@ class Kerosey():
                           reduce(lambda x, y: x * y, last_layer.shape[1:], 1))
             self.func = lambda x: tf.reshape(x, (-1, ) + self.shape[1:])
 
+    class FlattenSeq(Layer):
+        """
+        this takes a [timeseq, batch, width, height, channels] tensor
+        and converts it [batch, *]
+        for use when we're ready for dense layers, and not using an LSTM
+        """
+
+        def __init__(self, model, keep_seq=False):
+            last_layer = model.layers[-1]
+            assert len(last_layer.shape) == 5, "Input should be 5D"
+            # nultiply out dimensions except the first (batch) one
+            
+            if keep_seq:
+                self.shape = (last_layer.shape[0], last_layer.shape[1], reduce(
+                    lambda x, y: x * y, last_layer.shape[2:], 1))
+                # keep first two dimensions intact
+                self.func = lambda x: tf.reshape(x, (x.shape[0], -1, self.shape[-1])) 
+                # this format is inconsistent with the format below, but it will do
+            else:
+                self.shape = (last_layer.shape[1], last_layer.shape[0] * reduce(
+                    lambda x, y: x * y, last_layer.shape[2:], 1))
+                self.func = lambda x: tf.reshape(tf.transpose(x, perm=[1, 0, 2, 3, 4]), (-1, ) + self.shape[1:])
+                
+
     class Dense(Layer):
         def __init__(self, model, num_units):
             last_layer = model.layers[-1]
-            # nultiply out dimensions except the first (batch) one
             self.shape = (last_layer.shape[0], num_units)
             self.weights = tf.get_variable(
                 'w' + str(len(model.layers)),
@@ -299,6 +278,87 @@ class Kerosey():
 
             self.func = lambda x: tf.add(tf.matmul(x, self.weights), self.bias)
 
+    ## TODO:: CONVERT FROM PYTORCH
+    class LSTM(Layer):
+        """The LSTM layer. A sequence -> single value setup"""
+    
+        # should just wrap it all up into one class, I think.
+    
+        def __init__(self, model, num_units): # input_size: int, hidden_size: int):
+        
+            # C and H will have the same size
+            last_layer = model.layers[-1]
+            
+            assert len(last_layer.shape) == 3, "last layer should have shape: [timeseq, batch, feature]"
+            
+            last_layer = model.layers[-1]
+            self.shape = (last_layer.shape[1], num_units)
+            self.weight_shape = (last_layer.shape[2] + num_units, num_units) #in, out
+            
+            # self.input_size = input_size
+            # self.hidden_size = hidden_size
+            # hx_size = input_size + hidden_size
+    
+            # note: c and h have the same size
+            def gate_wt_gen(code):
+                """generates weight and bias variables for use in each of the four gates"""
+                # w = nn.Parameter(torch.Tensor(hidden_size, hx_size))  #out_Feats, in_feats
+                # b = nn.Parameter(torch.Tensor(hidden_size)) #out_Feats
+
+                w = tf.get_variable(
+                    'w' + str(len(model.layers)) + code,
+                    shape=(last_layer.shape[2] + num_units, num_units),
+                    initializer=tf.contrib.layers.xavier_initializer())
+                
+                b = tf.get_variable(
+                    'b' + str(len(model.layers)) + code,
+                    shape=(num_units, ),
+                    initializer=tf.contrib.layers.xavier_initializer())
+                               
+                return w, b
+        
+            # ok, and now define the whole forward-pass function
+            
+            
+            self.forget_gate_w, self.forget_gate_b = gate_wt_gen('f')
+            self.input_gate_w, self.input_gate_b = gate_wt_gen('i')
+            self.candidate_w, self.candidate_b = gate_wt_gen('c')
+            self.output_gate_w, self.output_gate_b = gate_wt_gen('o')
+            
+            # initialise C and H cell states (for use in first timestep)
+            
+            def lstm(x):
+                print (x.shape[1])
+                
+                # fucking ridiculous
+                h = tf.einsum('i,j->ij', tf.zeros_like(x[0, :, 0]), tf.zeros((self.shape[-1])))
+                c = tf.einsum('i,j->ij', tf.zeros_like(x[0, :, 0]), tf.zeros((self.shape[-1])))
+                
+                seq_len = x.shape[0]
+                
+                for t in range(seq_len):
+                    # x[t] will be [batch, in_features]; h is [batch, out_features(=num_units)]
+                    xh = tf.concat([x[t], h], axis=1)
+                    
+                    # calculate and apply forget gate
+                    # it should really be called a 'remember gate'.
+                    forget_gate = tf.sigmoid(tf.add(tf.matmul(xh, self.forget_gate_w), self.forget_gate_b))
+                    c = tf.multiply(forget_gate, c)
+            
+                    # calculate and apply input gate, candidate input
+                    input_gate = tf.sigmoid(tf.add(tf.matmul(xh, self.input_gate_w), self.input_gate_b))
+                    candidate = tf.tanh(tf.add(tf.matmul(xh, self.candidate_w), self.candidate_b))
+                    c = tf.add(c, tf.multiply(candidate, input_gate))
+                    
+                    # decide what to output
+                    output_gate = tf.sigmoid(tf.add(tf.matmul(xh, self.output_gate_w), self.output_gate_b))
+                    h = tf.multiply(tf.tanh(c), output_gate)
+                    
+                return h
+            
+            self.func = lstm
+
+        
     class LayeredModel(object):
         def __init__(self):
             self.layers = []
@@ -377,7 +437,7 @@ class Kerosey():
 
         def run(self, v, x, y=None, train_mode=False):
             feed_dict = {self.tfp_x: x}
-            
+
             if y is not None:
                 feed_dict[self.tfp_y] = y
 
@@ -385,10 +445,16 @@ class Kerosey():
                 feed_dict[self.tfp_drop_prob] = self.val_drop_prob
             else:
                 feed_dict[self.tfp_drop_prob] = 0.0
-                
+
             return self.session.run(v, feed_dict=feed_dict)
 
-        def crunch(self, x, y, batch_size, results, train_mode=False, collect_stats=False):
+        def crunch(self,
+                   x,
+                   y,
+                   batch_size,
+                   results,
+                   train_mode=False,
+                   collect_stats=False):
             rr = None  #this will be a list
 
             for x_batch, y_batch in make_batches(x, y, batch_size):
@@ -429,26 +495,40 @@ class Kerosey():
                                                       self.accuracy())
                 tf_summ_writer = tf.summary.FileWriter(
                     os.path.join('.', tensorboard_dir), self.session.graph)
-            
-            train_loss = self.crunch(x_train, y_train, batch_size,
-                                     [self.loss()], train_mode=True, collect_stats=True)
+
+            train_loss = self.crunch(
+                x_train,
+                y_train,
+                batch_size, [self.loss()],
+                train_mode=True,
+                collect_stats=True)
 
             print("Initial loss:", train_loss)
 
             for i in range(epochs):
 
-                self.crunch(x_train, y_train, batch_size,
-                            self.optimiser.minimize(self.loss()), collect_stats=False)
-                
+                self.crunch(
+                    x_train,
+                    y_train,
+                    batch_size,
+                    self.optimiser.minimize(self.loss()),
+                    collect_stats=False)
+
                 # dropout (if any) activated (via train_mode)
                 train_loss, train_acc = self.crunch(
-                    x_train, y_train, batch_size,
-                    [self.loss(), self.accuracy()], train_mode=True, collect_stats=True)
+                    x_train,
+                    y_train,
+                    batch_size, [self.loss(), self.accuracy()],
+                    train_mode=True,
+                    collect_stats=True)
 
                 # dropout deactivated
                 valid_loss, valid_acc = self.crunch(
-                    x_valid, y_valid, batch_size,
-                    [self.loss(), self.accuracy()], train_mode=False, collect_stats=True)
+                    x_valid,
+                    y_valid,
+                    batch_size, [self.loss(), self.accuracy()],
+                    train_mode=False,
+                    collect_stats=True)
 
                 if tensorboard_dir is not None:
                     tf_summ_train_loss_c, tf_summ_train_acc_c = self.run(
@@ -475,8 +555,12 @@ class Kerosey():
             print("Training finished")
 
         def test(self, x_test, y_test, batch_size=1024):
-            self.test_acc = self.crunch(x_test, y_test, batch_size,
-                                        [self.accuracy()], train_mode=False, collect_stats=True)
+            self.test_acc = self.crunch(
+                x_test,
+                y_test,
+                batch_size, [self.accuracy()],
+                train_mode=False,
+                collect_stats=True)
             print("Test Accuracy {:4f}".format(self.test_acc))
             pass
 
@@ -488,8 +572,8 @@ class Kerosey():
             if not os.path.exists(dirpath):
                 os.mkdir(dirpath)
 
-            tf.train.Saver().save(
-                self.session, os.path.join(dirpath, 'model.ckpt'))
+            tf.train.Saver().save(self.session,
+                                  os.path.join(dirpath, 'model.ckpt'))
             print("Model saved in path: %s" % directory)
             pass
 
