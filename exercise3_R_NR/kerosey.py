@@ -1,9 +1,6 @@
 from __future__ import print_function
 
-import gzip
-import json
 import os
-import pickle
 
 import numpy as np
 
@@ -11,7 +8,6 @@ import tensorflow as tf
 
 from math import ceil
 
-from operator import mul
 from functools import reduce
 
 # tensor flow likes: [batch, height, width, channels]
@@ -98,7 +94,6 @@ class Kerosey():
             # stride not working, obviously.
 
             # for weights, tf likes [height, width, in, out]
-            # Q: how will we force weight sharing between input layers?
             self.weights = tf.get_variable(
                 'w' + str(len(model.layers)),
                 shape=(filter_size, filter_size, last_layer.shape[-1],
@@ -250,18 +245,19 @@ class Kerosey():
             last_layer = model.layers[-1]
             assert len(last_layer.shape) == 5, "Input should be 5D"
             # nultiply out dimensions except the first (batch) one
-            
+
             if keep_seq:
-                self.shape = (last_layer.shape[0], last_layer.shape[1], reduce(
-                    lambda x, y: x * y, last_layer.shape[2:], 1))
+                self.shape = (last_layer.shape[0], last_layer.shape[1],
+                              reduce(lambda x, y: x * y, last_layer.shape[2:],
+                                     1))
                 # keep first two dimensions intact
-                self.func = lambda x: tf.reshape(x, (x.shape[0], -1, self.shape[-1])) 
+                self.func = lambda x: tf.reshape(x, (self.shape[0], -1) + self.shape[2:])
                 # this format is inconsistent with the format below, but it will do
             else:
-                self.shape = (last_layer.shape[1], last_layer.shape[0] * reduce(
-                    lambda x, y: x * y, last_layer.shape[2:], 1))
+                self.shape = (last_layer.shape[1],
+                              last_layer.shape[0] * reduce(
+                                  lambda x, y: x * y, last_layer.shape[2:], 1))
                 self.func = lambda x: tf.reshape(tf.transpose(x, perm=[1, 0, 2, 3, 4]), (-1, ) + self.shape[1:])
-                
 
     class Dense(Layer):
         def __init__(self, model, num_units):
@@ -278,87 +274,92 @@ class Kerosey():
 
             self.func = lambda x: tf.add(tf.matmul(x, self.weights), self.bias)
 
-    ## TODO:: CONVERT FROM PYTORCH
     class LSTM(Layer):
         """The LSTM layer. A sequence -> single value setup"""
-    
+
         # should just wrap it all up into one class, I think.
-    
-        def __init__(self, model, num_units): # input_size: int, hidden_size: int):
-        
+
+        def __init__(self, model,
+                     num_units):  # input_size: int, hidden_size: int):
+
             # C and H will have the same size
             last_layer = model.layers[-1]
-            
-            assert len(last_layer.shape) == 3, "last layer should have shape: [timeseq, batch, feature]"
-            
+
+            assert len(
+                last_layer.shape
+            ) == 3, "last layer should have shape: [timeseq, batch, feature]"
+
             last_layer = model.layers[-1]
             self.shape = (last_layer.shape[1], num_units)
-            self.weight_shape = (last_layer.shape[2] + num_units, num_units) #in, out
-            
-            # self.input_size = input_size
-            # self.hidden_size = hidden_size
-            # hx_size = input_size + hidden_size
-    
+            self.weight_shape = (last_layer.shape[2] + num_units,
+                                 num_units)  #in, out
+
             # note: c and h have the same size
             def gate_wt_gen(code):
                 """generates weight and bias variables for use in each of the four gates"""
-                # w = nn.Parameter(torch.Tensor(hidden_size, hx_size))  #out_Feats, in_feats
-                # b = nn.Parameter(torch.Tensor(hidden_size)) #out_Feats
 
                 w = tf.get_variable(
                     'w' + str(len(model.layers)) + code,
                     shape=(last_layer.shape[2] + num_units, num_units),
                     initializer=tf.contrib.layers.xavier_initializer())
-                
+
                 b = tf.get_variable(
                     'b' + str(len(model.layers)) + code,
                     shape=(num_units, ),
-                    initializer=tf.contrib.layers.xavier_initializer())
-                               
+                    initializer=tf.constant_initializer(
+                        0.8))  # for gates - initialise as (mostly) open
+
                 return w, b
-        
-            # ok, and now define the whole forward-pass function
-            
-            
+
             self.forget_gate_w, self.forget_gate_b = gate_wt_gen('f')
             self.input_gate_w, self.input_gate_b = gate_wt_gen('i')
             self.candidate_w, self.candidate_b = gate_wt_gen('c')
             self.output_gate_w, self.output_gate_b = gate_wt_gen('o')
-            
-            # initialise C and H cell states (for use in first timestep)
-            
+
             def lstm(x):
-                print (x.shape[1])
-                
-                # fucking ridiculous
-                h = tf.einsum('i,j->ij', tf.zeros_like(x[0, :, 0]), tf.zeros((self.shape[-1])))
-                c = tf.einsum('i,j->ij', tf.zeros_like(x[0, :, 0]), tf.zeros((self.shape[-1])))
-                
+
+                # initialise C and H cell states (for use in first timestep)
+                h = tf.einsum('i,j->ij', tf.zeros_like(x[0, :, 0]),
+                              tf.zeros((self.shape[-1])))
+                c = tf.einsum('i,j->ij', tf.zeros_like(x[0, :, 0]),
+                              tf.zeros((self.shape[-1])))
+                # is there a better way of doing this, since tf doesn't know x's batch dimension?
+
                 seq_len = x.shape[0]
-                
+
                 for t in range(seq_len):
                     # x[t] will be [batch, in_features]; h is [batch, out_features(=num_units)]
                     xh = tf.concat([x[t], h], axis=1)
-                    
+
                     # calculate and apply forget gate
                     # it should really be called a 'remember gate'.
-                    forget_gate = tf.sigmoid(tf.add(tf.matmul(xh, self.forget_gate_w), self.forget_gate_b))
+                    forget_gate = tf.sigmoid(
+                        tf.add(
+                            tf.matmul(xh, self.forget_gate_w),
+                            self.forget_gate_b))
                     c = tf.multiply(forget_gate, c)
-            
+
                     # calculate and apply input gate, candidate input
-                    input_gate = tf.sigmoid(tf.add(tf.matmul(xh, self.input_gate_w), self.input_gate_b))
-                    candidate = tf.tanh(tf.add(tf.matmul(xh, self.candidate_w), self.candidate_b))
+                    input_gate = tf.sigmoid(
+                        tf.add(
+                            tf.matmul(xh, self.input_gate_w),
+                            self.input_gate_b))
+                    candidate = tf.tanh(
+                        tf.add(
+                            tf.matmul(xh, self.candidate_w), self.candidate_b))
                     c = tf.add(c, tf.multiply(candidate, input_gate))
-                    
+
                     # decide what to output
-                    output_gate = tf.sigmoid(tf.add(tf.matmul(xh, self.output_gate_w), self.output_gate_b))
+                    output_gate = tf.sigmoid(
+                        tf.add(
+                            tf.matmul(xh, self.output_gate_w),
+                            self.output_gate_b))
                     h = tf.multiply(tf.tanh(c), output_gate)
-                    
+
                 return h
-            
+
             self.func = lstm
 
-        
     class LayeredModel(object):
         def __init__(self):
             self.layers = []
@@ -412,8 +413,6 @@ class Kerosey():
             self.session = tf.Session()
             self.session.run(tf.global_variables_initializer())
             self.session.run(tf.local_variables_initializer())
-            # self.session = tf.Session()
-            # self.session.run(tf.global_variables_initializer()) #why both? who knows
 
             self.train_losses = []
             self.train_accs = []
@@ -562,7 +561,7 @@ class Kerosey():
                 train_mode=False,
                 collect_stats=True)
             print("Test Accuracy {:4f}".format(self.test_acc))
-            pass
+
 
         def save(self, directory):
 
@@ -575,10 +574,8 @@ class Kerosey():
             tf.train.Saver().save(self.session,
                                   os.path.join(dirpath, 'model.ckpt'))
             print("Model saved in path: %s" % directory)
-            pass
 
         def restore(self, directory):
             tf.train.Saver().restore(
                 self.session, os.path.join('.', directory, 'model.ckpt'))
             print("Model restored from path: %s" % directory)
-            pass

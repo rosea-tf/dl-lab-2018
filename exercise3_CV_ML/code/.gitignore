@@ -1,7 +1,0 @@
-*tar.gz
-*.pkt
-*npy
-*.swp
-*.pyc
-__pycache__/
-logs/

@@ -1,13 +1,14 @@
 from __future__ import print_function
 
-from datetime import datetime
 import numpy as np
 import gym
 import os
 import json
 import argparse
+import gc
 
-from train_agent import create_a_model, process_images
+from train_agent import create_a_model
+from process_data import process_images
 
 # %%
 
@@ -17,20 +18,29 @@ OUTPUT_SIZE = 5
 ACTION_TYPES = np.array([[0.0, 0.0, 0.0], [-1.0, 0.0, 0.0], [1.0, 0.0, 0.0],
                          [0.0, 1.0, 0.0], [0.0, 0.0, 0.4]])
 
+MODELS_DIR = "models"
+TEST_RESULTS_FNAME = "test_results_sm.json"
+
+def softmax(x):
+    """Compute softmax values for each sets of scores in x."""
+    e_x = np.exp(x - np.max(x))
+    return e_x / e_x.sum()
 
 def action_from_prediction(p):
     """
     takes a len-5 array from network (nothing, left, right, accel, brake)
     returns a len-3 action expected by gym (steer L-/R+, accel, brake)
     """
-    m = np.argmax(
-        p
-    )  # choose most likely action (not sampling from a softmax here... yet)
-    return ACTION_TYPES[m]
+    
+    ps = softmax(p)
+    
+    a = (ps[2] - ps[1], ps[3], ps[4] * 0.4)
+
+    return a
 
 
 def retrieve_model(directory):
-    fname = os.path.join("models", directory, "cnn_hypers.json")
+    fname = os.path.join(MODELS_DIR, directory, "cnn_hypers.json")
 
     with open(fname, "r") as fh:
         hypers = json.load(fh)
@@ -38,9 +48,11 @@ def retrieve_model(directory):
     # create a model of the same spec that was saved in the folder
     # because tensorflow won't do this for you.
     model = create_a_model(
-        X_shape=(2000, IMAGE_W, IMAGE_H, 1 + hypers['history_length']),
+        X_shape=(2000, IMAGE_W, IMAGE_H, hypers['history_length']),
         y_shape=(2000, OUTPUT_SIZE),
-        use_3d=hypers['use_3d'],
+        sequentialise=hypers['sequentialise'],
+        use_lstm=hypers['use_lstm'],
+        filter_size=3,
         num_filters=hypers['num_filters'],
         num_flat_units=hypers['num_flat_units'],
         drop_prob=hypers['drop_prob'],
@@ -66,14 +78,13 @@ def run_episode(env, agent, hypers, rendering=True, max_timesteps=1000):
     #idea: keep an np.array of last 5 states. expand current one to begin with. then roll, every step.
 
     while True:
-        # TODO: preprocess the state in the same way than in in your preprocessing in train_agent.py
         state_g = process_images(state)[np.newaxis, ...]
 
-        if history_length > 0:
+        if history_length > 1:
             if history is None:
                 history = np.broadcast_to(
                     state_g, shape=(1, IMAGE_W, IMAGE_H,
-                                    1 + history_length)).copy()
+                                    history_length)).copy()
             else:
                 history[..., 1:] = history[..., :
                                            -1]  # shift all elements back 1
@@ -82,8 +93,6 @@ def run_episode(env, agent, hypers, rendering=True, max_timesteps=1000):
         else:
             history = state_g
 
-        # TODO: get the action from your agent! If you use discretized actions you need to transform them to continuous
-        # actions again. a needs to have a shape like np.array([0.0, 0.0, 0.0])
         prediction = np.squeeze(agent.run(agent.prediction(), history, None))
 
         action = action_from_prediction(prediction)
@@ -94,6 +103,9 @@ def run_episode(env, agent, hypers, rendering=True, max_timesteps=1000):
 
         if step % 100 == 0:
             print('step', step)
+            #reset agent - fixing tf slowdown
+            agent, hypers = retrieve_model(hypers['name'])
+            gc.collect()
 
         step += 1
 
@@ -106,12 +118,47 @@ def run_episode(env, agent, hypers, rendering=True, max_timesteps=1000):
     return episode_reward
 
 
-#%%
-if False:
-    # %%
-    agent, hypers = retrieve_model('1a_small')
-
 # %%
+def evaluate_agent(directory, n_test_episodes, rendering):
+
+    # %%
+    episode_rewards = []
+
+    env = gym.make('CarRacing-v0').unwrapped
+
+    env.seed(1234)
+
+    for i in range(n_test_episodes):
+        # pass hypers because it contains history_length
+        agent, hypers = retrieve_model(directory)
+        # it seems to slow down unbearably unless we refresh the agent every so often
+
+        episode_reward = run_episode(env, agent, hypers, rendering=rendering)
+        episode_rewards.append(episode_reward)
+
+        agent = None
+        gc.collect()
+
+        # save results in a dictionary and write them into a .json file
+        # keep in the same folder as the model
+        # do this every episode, in case we need to bail out early
+        results = dict()
+        results["episode_rewards"] = episode_rewards
+        results["mean"] = np.array(episode_rewards).mean()
+        results["std"] = np.array(episode_rewards).std()
+
+        fname = os.path.join(MODELS_DIR, directory, TEST_RESULTS_FNAME)
+        with open(fname, "w") as fh:
+            json.dump(results, fh)
+
+    env.close()
+
+    env = None
+
+    print('... finished')
+
+    return
+
 
 # %%
 if __name__ == "__main__":
@@ -125,33 +172,20 @@ if __name__ == "__main__":
     # important: don't set rendering to False for evaluation (you may get corrupted state images from gym)
     rendering = True
 
-    n_test_episodes = 15  # number of episodes to test
-    # n_test_episodes = 1
+    n_test_episodes = 10  # number of episodes to test
 
-    agent, hypers = retrieve_model(args.directory)
+    if args.directory == 'ALL':
+        for directory in os.listdir(MODELS_DIR):
+            dirpath = os.path.join(MODELS_DIR, directory)
+            if os.path.isdir(dirpath):
+                if os.path.exists(os.path.join(dirpath, 'cnn_results.json')):
+                    print("Found model at " + dirpath)
+                    # don't run test if a results file already exists
+                    if not os.path.exists(
+                            os.path.join(dirpath, TEST_RESULTS_FNAME)):
+                        evaluate_agent(directory, n_test_episodes, rendering)
+                    else:
+                        print("\t...already tested! skipping")
 
-    env = gym.make('CarRacing-v0').unwrapped
-
-    # %%
-    episode_rewards = []
-
-    for i in range(n_test_episodes):
-        # pass hypers because it contains history_length
-        episode_reward = run_episode(env, agent, hypers, rendering=rendering)
-        episode_rewards.append(episode_reward)
-
-    # save results in a dictionary and write them into a .json file
-    # keep in the same folder as the model
-    results = dict()
-    results["episode_rewards"] = episode_rewards
-    results["mean"] = np.array(episode_rewards).mean()
-    results["std"] = np.array(episode_rewards).std()
-
-    fname = os.path.join(
-        "models", args.directory,
-        "results_bc_agent-%s.json" % datetime.now().strftime("%Y%m%d-%H%M%S"))
-    fh = open(fname, "w")
-    json.dump(results, fh)
-
-    env.close()
-    print('... finished')
+    else:
+        evaluate_agent(args.directory, n_test_episodes, rendering)

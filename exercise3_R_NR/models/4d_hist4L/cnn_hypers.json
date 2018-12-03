@@ -1,0 +1,1 @@
+{"name": "4d_hist4L", "sequentialise": true, "do_augmentation": true, "epochs": 20, "learning_rate": 0.0001, "use_lstm": true, "drop_prob": 0, "optimiser": "adam", "batch_size": 32, "num_filters": [12, 12], "num_flat_units": [256, 128], "history_length": 4}

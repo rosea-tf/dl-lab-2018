@@ -1,0 +1,1 @@
+{"batch_size": 45, "epochs": 20, "filter_size": 3, "num_flat_units": [380, 380], "num_filters": [11, 11], "do_augmentation": true, "history_length": 4, "use_lstm": false, "name": "incumbent", "optimiser": "adam", "drop_prob": 0.0728722991760502, "learning_rate": 0.00041507773892575416, "sequentialise": false}
