@@ -1,3 +1,4 @@
+# %%
 # -*- coding: utf-8 -*-
 """
 Created on Sat Dec  1 16:57:35 2018
@@ -42,6 +43,18 @@ get_model_results('4c_hist4S')
 get_model_results('4d_hist4L')
 get_model_results('incumbent')
 
+# manual driving rewards
+results['manual'] = dict()
+dr = []
+for data_file in os.listdir('drive_manually'):
+    if data_file.endswith(".json"):
+            with open(os.path.join('drive_manually', data_file), "r") as fh:
+                dr += json.load(fh)['episode_rewards']
+
+results['manual']['test'] = {'episode_rewards': dr}
+
+# %%
+
 # %% Plot training curves
 
 mpl.rcParams['savefig.dpi'] = 150
@@ -57,12 +70,14 @@ def doplot(data, saveto):
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
 
     for key, label in data:
-        accs_plot(results[key]['train'], ax1, label)
-
+        if key != 'manual':
+            accs_plot(results[key]['train'], ax1, label)
+    ax1.set_title('Training curves')
     ax1.set_ylabel('Accuracy')
     ax1.set_xlabel('Epoch')
     ax1.legend()
 
+    ax2.set_title('Driving results')
     ax2.boxplot(
         [results[key]['test']['episode_rewards'] for key, label in data],
         labels=[label for key, label in data])
@@ -73,7 +88,7 @@ def doplot(data, saveto):
     # plt.show()
 
 
-doplot([['1_basic', 'Initial Data'], ['2_augmented', 'Balanced Data']],
+doplot([['manual', 'Manual Driving'], ['1_basic', 'Initial Data'], ['2_augmented', 'Balanced Data']],
        'figs/balance.png')
 
 doplot([['2_augmented', 'Dropout 0.00'], ['3a_dropout05', 'Dropout 0.05'],
@@ -81,7 +96,7 @@ doplot([['2_augmented', 'Dropout 0.00'], ['3a_dropout05', 'Dropout 0.05'],
        'figs/dropout.png')
 
 doplot([['2_augmented', 'History = 1'], ['4a_hist2', 'History = 2'],
-        ['4b_hist4', 'History = 4'], ['4c_hist4S', 'Sequential']],
+        ['4b_hist4', 'History = 4'], ['4c_hist4S', 'History=4\n(Parallel)']],
        'figs/history.png')
 
 doplot([['2_augmented', 'Basic Model'], ['4d_hist4L', 'CNN-LSTM'],
