@@ -1,1 +1,0 @@
-{"num_filters": [12, 12], "history_length": 1, "name": "4a_hist1", "learning_rate": 0.0001, "do_augmentation": true, "use_lstm": false, "num_flat_units": [256, 128], "sequentialise": false, "drop_prob": 0, "epochs": 20, "batch_size": 32, "optimiser": "adam"}

@@ -1,1 +1,0 @@
-{"do_augmentation": true, "history_length": 3, "drop_prob": 0, "use_lstm": false, "learning_rate": 0.0001, "name": "4b_hist3", "batch_size": 32, "sequentialise": false, "num_flat_units": [256, 128], "epochs": 20, "num_filters": [12, 12], "optimiser": "adam"}

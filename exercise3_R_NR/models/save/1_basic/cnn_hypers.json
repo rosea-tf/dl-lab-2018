@@ -1,1 +1,0 @@
-{"do_augmentation": false, "name": "1_basic", "drop_prob": 0, "batch_size": 32, "use_lstm": false, "epochs": 20, "num_filters": [12, 12], "history_length": 0, "num_flat_units": [256, 128], "sequentialise": false, "optimiser": "adam", "learning_rate": 0.0001}
