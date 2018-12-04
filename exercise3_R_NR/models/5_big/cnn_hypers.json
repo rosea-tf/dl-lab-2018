@@ -1,0 +1,1 @@
+{"name": "5_big", "drop_prob": 0.2, "optimiser": "adam", "num_filters": [16, 32, 64], "epochs": 50, "history_length": 4, "sequentialise": false, "do_augmentation": true, "num_flat_units": [512, 128], "filter_size": 5, "batch_size": 32, "use_lstm": false, "learning_rate": 0.0001}
