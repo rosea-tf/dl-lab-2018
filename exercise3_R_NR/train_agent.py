@@ -290,3 +290,18 @@ if __name__ == "__main__":
         learning_rate=1e-4,
         epochs=20,
         batch_size=32)
+
+    train_a_model(
+        "5_big",
+        do_augmentation=True,
+        history_length=4,
+        sequentialise=False,
+        use_lstm=False,
+        filter_size=5,
+        num_filters=[16, 32, 64],
+        num_flat_units=[512, 128],
+        drop_prob=0.2,
+        optimiser='adam',
+        learning_rate=1e-4,
+        epochs=50,
+        batch_size=32)

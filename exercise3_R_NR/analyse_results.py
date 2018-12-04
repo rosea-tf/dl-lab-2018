@@ -42,6 +42,7 @@ get_model_results('4b_hist4')
 get_model_results('4c_hist4S')
 get_model_results('4d_hist4L')
 get_model_results('incumbent')
+get_model_results('5_big')
 
 # manual driving rewards
 results['manual'] = dict()
@@ -61,8 +62,8 @@ mpl.rcParams['savefig.dpi'] = 150
 
 
 def accs_plot(dictionary, ax, label):
-    line, = ax.plot(dictionary['train_accs'], label=label)
-    ax.plot(dictionary['valid_accs'], line.get_color(), linestyle=':')
+    line, = ax.plot(dictionary['train_accs'][:20], label=label)
+    ax.plot(dictionary['valid_accs'][:20], line.get_color(), linestyle=':')
 
 
 def doplot(data, saveto):
@@ -99,5 +100,5 @@ doplot([['2_augmented', 'History = 1'], ['4a_hist2', 'History = 2'],
         ['4b_hist4', 'History = 4'], ['4c_hist4S', 'History=4\n(Parallel)']],
        'figs/history.png')
 
-doplot([['2_augmented', 'Basic Model'], ['4d_hist4L', 'CNN-LSTM'],
-        ['incumbent', 'Best BOHB Model']], 'figs/bohb.png')
+doplot([['4d_hist4L', 'CNN-LSTM'],
+        ['incumbent', 'Best BOHB Model'], ['5_big', 'High-Capacity Model'], ], 'figs/final.png')

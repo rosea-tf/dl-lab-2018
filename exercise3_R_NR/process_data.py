@@ -52,8 +52,8 @@ def process_actions(y):
     """discretises actions, regardless of numerical value"""
     left = y[:, 0] < 0
     right = y[:, 0] > 0
-    accel = y[:, 1] > 0
-    brake = y[:, 2] > 0
+    accel = np.logical_and(y[:, 1] > 0, y[:, 0] == 0)
+    brake = np.logical_and(y[:, 2] > 0, y[:, 0] == 0)
     nothing = np.all(y == 0, axis=1)
     stacked = np.stack((nothing, left, right, accel, brake), axis=1)
 
