@@ -73,7 +73,7 @@ class TargetNetwork(NeuralNetwork):
     it is always set to the values of its associate.
     """
     def __init__(self, state_dim, num_actions, hidden=20, lr=1e-4, tau=0.01):
-        MLP.__init__(self, state_dim, num_actions, hidden, lr)
+        NeuralNetwork.__init__(self, state_dim, num_actions, hidden, lr)
         self.tau = tau
         self._associate = self._register_associate()
 
