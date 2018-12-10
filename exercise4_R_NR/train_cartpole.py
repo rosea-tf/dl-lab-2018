@@ -2,7 +2,7 @@ import numpy as np
 import gym
 import itertools as it
 from dqn.dqn_agent import DQNAgent
-from tensorboard_evaluation import *
+from tensorboard_evaluation import Evaluation
 from dqn.networks import NeuralNetwork, TargetNetwork
 from utils import EpisodeStats
 
