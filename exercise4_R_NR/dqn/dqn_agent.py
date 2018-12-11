@@ -70,16 +70,16 @@ class DQNAgent:
         
         # 2.1 compute td targets: 
         # if done, there will be no next state
-        td_targets = batch_rewards + np.where(batch_dones, 0, discount * q_values_next)
+        td_targets = batch_rewards + np.where(batch_dones, 0, self.discount_factor * q_values_next)
         
         
         # 2.2 update the Q (current) network
-        self.Q.update(self, self.sess, batch_states, batch_actions, td_targets)
+        self.Q.update(self.sess, batch_states, batch_actions, td_targets)
         
         
         # 2.3 call soft update for target network
             # this is done by the dodgy associate_method therein
-        self.Q_target.update(self, self.sess)
+        self.Q_target.update(self.sess)
    
 
     def act(self, state, deterministic):
@@ -93,24 +93,29 @@ class DQNAgent:
         """
         
         # get action probabilities from current network
-        action_probs = action_selector.predict(self.sess, batch_next_states)
+        Q_values = np.squeeze(self.Q.predict(self.sess, np.expand_dims(state, axis=0)))
         
+        argmax_a = np.argmax(Q_values)
         
         r = np.random.uniform()
+
         if deterministic or r > self.epsilon:
             # take greedy action
-            action_id = np.argmax(action_probs, axis=1)
-        else:
+            return argmax_a
 
-            # sample random action
 
-            # Hint for the exploration in CarRacing: sampling the action from a uniform distribution will probably not work. 
-            # You can sample the agents actions with different probabilities (need to sum up to 1) so that the agent will prefer to accelerate or going straight.
-            # To see how the agent explores, turn the rendering in the training on and look what the agent is doing.
+        # sample random action
 
-            action_id = np.random.choice(np.arange(len(action_probs)), p=action_probs)
+        # Hint for the exploration in CarRacing: sampling the action from a uniform distribution will probably not work. 
+        # You can sample the agents actions with different probabilities (need to sum up to 1) so that the agent will prefer to accelerate or going straight.
+        # To see how the agent explores, turn the rendering in the training on and look what the agent is doing.
+        action_probs = np.zeros_like(Q_values)
+        action_probs += (self.epsilon / action_probs.size)
+        action_probs[argmax_a] += (1 - self.epsilon)
+        
+        epsilon_a = np.random.choice(np.arange(len(action_probs)), p=action_probs)
           
-        return action_id
+        return epsilon_a
 
 
     def load(self, file_name):

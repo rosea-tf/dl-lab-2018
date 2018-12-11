@@ -26,8 +26,8 @@ class ReplayBuffer:
         This method adds a transition to the replay buffer.
         """
         # check if we're over capacity
-        while len(self._data.states) >= capacity:
-            for d in data:
+        while len(self._data.states) >= self.capacity:
+            for d in self._data:
                 del d[0]  #FIFO
 
         self._data.states.append(state)

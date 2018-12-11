@@ -29,7 +29,7 @@ class NeuralNetwork():
         fc1 = tf.layers.dense(self.states_, hidden, tf.nn.relu)
         fc2 = tf.layers.dense(fc1, hidden, tf.nn.relu)
         self.predictions = tf.layers.dense(fc2, num_actions)
-
+        
         # Get the predictions for the chosen actions only
         batch_size = tf.shape(self.states_)[0]
         gather_indices = tf.range(batch_size) * tf.shape(
