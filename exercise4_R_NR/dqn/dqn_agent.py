@@ -4,7 +4,7 @@ from dqn.replay_buffer import ReplayBuffer
 
 class DQNAgent:
 
-    def __init__(self, Q, Q_target, num_actions, discount_factor=0.99, batch_size=64, epsilon=0.05, double_q=False):
+    def __init__(self, name, Q_current, Q_target, num_actions, discount_factor, batch_size, epsilon, double_q, eps_method):
         """
          Q-Learning agent for off-policy TD control using Function Approximation.
          Finds the optimal greedy policy while following an epsilon-greedy policy.
@@ -17,7 +17,10 @@ class DQNAgent:
             batch_size: Number of samples per batch.
             epsilon: Chance to sample a random action. Float betwen 0 and 1.
         """
-        self.Q = Q      
+        # save hyperparameters in folder
+        
+        self.name = name # probably useless
+        self.Q_current = Q_current      
         self.Q_target = Q_target
         
         self.epsilon = epsilon
@@ -27,6 +30,7 @@ class DQNAgent:
         self.discount_factor = discount_factor
 
         self.double_q = double_q
+        self.eps_method = eps_method 
 
         # define replay buffer
         self.replay_buffer = ReplayBuffer()
@@ -56,7 +60,7 @@ class DQNAgent:
             # double Q learning (select actions using current network, rather than target network)
             # ...in order to decorrelate noise between selection and evaluation
             # (Q(state,action) is still evaluated using target network in any case)
-            action_selector = self.Q
+            action_selector = self.Q_current
         else:
             action_selector = self.Q_target
             
@@ -66,7 +70,7 @@ class DQNAgent:
         
         # pick a''th value from each column of the Q prediction
         # note, this will include action predictions for "done" state, but we'll kill them later
-        q_values_next = self.Q.predict(self.sess, batch_next_states)[np.arange(self.batch_size), a_prime]
+        q_values_next = self.Q_current.predict(self.sess, batch_next_states)[np.arange(self.batch_size), a_prime]
         
         # 2.1 compute td targets: 
         # if done, there will be no next state
@@ -74,7 +78,7 @@ class DQNAgent:
         
         
         # 2.2 update the Q (current) network
-        self.Q.update(self.sess, batch_states, batch_actions, td_targets)
+        self.Q_current.update(self.sess, batch_states, batch_actions, td_targets)
         
         
         # 2.3 call soft update for target network
@@ -93,7 +97,7 @@ class DQNAgent:
         """
         
         # get action probabilities from current network
-        Q_values = np.squeeze(self.Q.predict(self.sess, np.expand_dims(state, axis=0)))
+        Q_values = np.squeeze(self.Q_current.predict(self.sess, np.expand_dims(state, axis=0)))
         
         argmax_a = np.argmax(Q_values)
         
@@ -103,8 +107,11 @@ class DQNAgent:
             # take greedy action
             return argmax_a
 
-
         # sample random action
+
+        if self.eps_method is not None:
+            pass
+            # TODO - implement epsilon annealing / boltzman exploration with this
 
         # Hint for the exploration in CarRacing: sampling the action from a uniform distribution will probably not work. 
         # You can sample the agents actions with different probabilities (need to sum up to 1) so that the agent will prefer to accelerate or going straight.

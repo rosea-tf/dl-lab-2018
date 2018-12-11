@@ -8,9 +8,12 @@ from tensorboard_evaluation import Evaluation
 from dqn.networks import NeuralNetwork, TargetNetwork
 from utils import EpisodeStats
 import os
+import json
 
 #%%
 
+MODEL_TEST_INTERVAL = 10 # after this number of episodes, test agent with deterministic actions
+MODEL_SAVE_INTERVAL = 100 # yep
 
 
 # %%
@@ -61,12 +64,12 @@ def train_online(env, agent, num_episodes, model_dir):
 
     print("... train agent")
 
-    # this might be a dumb idea
-    if os.path.exists(os.path.join(ckpt_dir, 'checkpoint')):
-        print ("...existing model found! loading")
-        agent.load(os.path.join(ckpt_dir, 'dqn_agent.ckpt'))
+    # this might be a dumb idea -- doesn't check that models are the same
+    # if os.path.exists(os.path.join(ckpt_dir, 'checkpoint')):
+    #     print ("...existing model found! loading")
+    #     agent.load(os.path.join(ckpt_dir, 'dqn_agent.ckpt'))
             
-
+    # TODO: make this better
     tensorboard = Evaluation(os.path.join(tensorboard_dir, "train"), [
                              "episode_reward", "left", "right"])
     tensorboard_test = Evaluation(os.path.join(tensorboard_dir, "test"), [
@@ -81,7 +84,7 @@ def train_online(env, agent, num_episodes, model_dir):
                                                      "right": stats.get_action_usage(1)})
 
 
-        if i % 10 == 0 or i >= (num_episodes - 1):
+        if i % MODEL_TEST_INTERVAL == 0 or i >= (num_episodes - 1):
             # evaluate your agent once in a while for some episodes using run_episode(env, agent, deterministic=True, do_training=False) to
             # check its performance with greedy actions only. You can also use tensorboard to plot the mean episode reward.
 
@@ -93,7 +96,7 @@ def train_online(env, agent, num_episodes, model_dir):
                                                               "right": stats_test.get_action_usage(1)})
 
         # store model every 100 episodes and in the end.
-        if i % 100 == 0 or i >= (num_episodes - 1):
+        if i % MODEL_SAVE_INTERVAL == 0 or i >= (num_episodes - 1):
             agent.saver.save(agent.sess, os.path.join(
                 ckpt_dir, "dqn_agent.ckpt"))
 
@@ -101,21 +104,37 @@ def train_online(env, agent, num_episodes, model_dir):
     tensorboard.close_session()
     tensorboard_test.close_session()
 #%%
-def make_cartpole_agent():
+def make_cartpole_agent(name, hidden=20, lr=1e-4, discount_factor=0.99, batch_size=64, 
+                        epsilon=0.1, tau=0.01, double_q=False, eps_method=None, save_hypers=True):
 
     # 1. init Q network and target network (see dqn/networks.py)
     state_dim = 4  # set by cartpole
     num_actions = 2 #set by cartpole
 
-    Q_current = NeuralNetwork(state_dim, num_actions, hidden=20, lr=1e-4)
-    Q_target = TargetNetwork(state_dim, num_actions,
-                             hidden=20, lr=1e-4, tau=0.01)
+    hypers = locals()
+
+    # prepare a model folder
+    base_path = os.path.join('.', 'cartpole')
+    if not os.path.exists(base_path):
+        os.mkdir(base_path)
+    model_path = os.path.join(base_path, name)
+    if not os.path.exists(model_path):
+        os.mkdir(model_path)
+
+    # save hypers into folder -- used for reconstructing model at test time
+    if save_hypers:
+        with open(os.path.join(model_path, "hypers.json"), "w") as fh:
+            json.dump(hypers, fh)
+            
+    Q_current = NeuralNetwork(state_dim, num_actions, hidden, lr)
+    
+    Q_target = TargetNetwork(state_dim, num_actions, hidden, lr, tau)
 
     # 2. init DQNAgent (see dqn/dqn_agent.py)
-    agent = DQNAgent(Q_current, Q_target, num_actions,
-                     discount_factor=0.99, batch_size=64, epsilon=0.1, double_q=False)
+    agent = DQNAgent(name, Q_current, Q_target, num_actions,
+                     discount_factor, batch_size, epsilon, double_q, eps_method)
     
-    return agent
+    return agent, model_path
 
 
 if __name__ == "__main__":
@@ -126,7 +145,7 @@ if __name__ == "__main__":
 
     env = gym.make("CartPole-v0").unwrapped
     
-    agent = make_cartpole_agent()
+    agent, model_path = make_cartpole_agent('basic')
 
     # 3. train DQN agent with train_online(...)
-    train_online(env, agent, num_episodes=2000, model_dir="./cartpole")
+    train_online(env, agent, num_episodes=20, model_dir=model_path)
