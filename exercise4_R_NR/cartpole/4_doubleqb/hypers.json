@@ -1,0 +1,1 @@
+{"boltzmann": false, "hidden": 20, "num_actions": 2, "epsilon_decay": 0.0, "discount_factor": 0.99, "batch_size": 64, "double_q": true, "save_hypers": true, "name": "4_doubleqb", "tau": 0.01, "state_dim": 4, "epsilon": 0.1, "lr": 0.0001}

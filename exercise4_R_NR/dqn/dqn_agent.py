@@ -2,9 +2,20 @@ import tensorflow as tf
 import numpy as np
 from dqn.replay_buffer import ReplayBuffer
 
+
+def softmax(x, temperature=1): #TODO
+    """
+    Compute softmax values for each sets of scores in x.
+    Used in Boltzmann exploration
+    """
+    x = np.divide(x, temperature)
+    e_x = np.exp(x - np.max(x))
+    return e_x / e_x.sum()
+
+
 class DQNAgent:
 
-    def __init__(self, name, Q_current, Q_target, num_actions, discount_factor, batch_size, epsilon, double_q, eps_method):
+    def __init__(self, name, Q_current, Q_target, num_actions, discount_factor, batch_size, epsilon, epsilon_decay, boltzmann, double_q): 
         """
          Q-Learning agent for off-policy TD control using Function Approximation.
          Finds the optimal greedy policy while following an epsilon-greedy policy.
@@ -24,13 +35,14 @@ class DQNAgent:
         self.Q_target = Q_target
         
         self.epsilon = epsilon
+        self.epsilon_decay = epsilon_decay
+        self.boltzmann = boltzmann
 
         self.num_actions = num_actions
         self.batch_size = batch_size
         self.discount_factor = discount_factor
 
         self.double_q = double_q
-        self.eps_method = eps_method 
 
         # define replay buffer
         self.replay_buffer = ReplayBuffer()
@@ -101,28 +113,39 @@ class DQNAgent:
         
         argmax_a = np.argmax(Q_values)
         
-        r = np.random.uniform()
-
-        if deterministic or r > self.epsilon:
+        if deterministic:
             # take greedy action
             return argmax_a
 
-        # sample random action
-
-        if self.eps_method is not None:
-            pass
-            # TODO - implement epsilon annealing / boltzman exploration with this
+        if self.boltzmann:
+            # implementing an interaction here between boltzmann exploration and epsilon:
+            # viz. that epsilon controls the temperature of the softmax function
+            # so that as before, higher eps -> higher exploration
+            action_probs = softmax(Q_values, temperature=1/(1-self.epsilon)**2)
+            action = np.random.choice(np.arange(len(action_probs)), p=action_probs)
+        
+        else:
+            action_probs = np.zeros_like(Q_values)
+            
+            if np.random.uniform() > self.epsilon:
+                # choose the best action
+                action = argmax_a
+            else:
+                # explore
+                action_probs += (self.epsilon / action_probs.size)
+                action_probs[argmax_a] += (1 - self.epsilon)
+                action = np.random.choice(np.arange(len(action_probs)), p=action_probs)
 
         # Hint for the exploration in CarRacing: sampling the action from a uniform distribution will probably not work. 
         # You can sample the agents actions with different probabilities (need to sum up to 1) so that the agent will prefer to accelerate or going straight.
         # To see how the agent explores, turn the rendering in the training on and look what the agent is doing.
-        action_probs = np.zeros_like(Q_values)
-        action_probs += (self.epsilon / action_probs.size)
-        action_probs[argmax_a] += (1 - self.epsilon)
-        
-        epsilon_a = np.random.choice(np.arange(len(action_probs)), p=action_probs)
-          
-        return epsilon_a
+
+        # we decay epsilon AFTER we've checked it 
+        # (nb: if deterministic, epsilon will never decay, but of course this doesn't matter)
+        if self.epsilon_decay > 0:
+            self.epsilon *= (1 - self.epsilon_decay)
+
+        return action
 
 
     def load(self, file_name):

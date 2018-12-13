@@ -105,7 +105,7 @@ def train_online(env, agent, num_episodes, model_dir):
     tensorboard_test.close_session()
 #%%
 def make_cartpole_agent(name, hidden=20, lr=1e-4, discount_factor=0.99, batch_size=64, 
-                        epsilon=0.1, tau=0.01, double_q=False, eps_method=None, save_hypers=True):
+                        epsilon=0.1, epsilon_decay=0.0, boltzmann=False, tau=0.01, double_q=False, save_hypers=True):
 
     # 1. init Q network and target network (see dqn/networks.py)
     state_dim = 4  # set by cartpole
@@ -132,7 +132,7 @@ def make_cartpole_agent(name, hidden=20, lr=1e-4, discount_factor=0.99, batch_si
 
     # 2. init DQNAgent (see dqn/dqn_agent.py)
     agent = DQNAgent(name, Q_current, Q_target, num_actions,
-                     discount_factor, batch_size, epsilon, double_q, eps_method)
+                     discount_factor, batch_size, epsilon, epsilon_decay, boltzmann, double_q)
     
     return agent, model_path
 
@@ -145,7 +145,16 @@ if __name__ == "__main__":
 
     env = gym.make("CartPole-v0").unwrapped
     
-    agent, model_path = make_cartpole_agent('basic')
+    num_eps = 1600
+    
+    agent, model_path = make_cartpole_agent('1_basic')
+    train_online(env, agent, num_episodes=num_eps, model_dir=model_path)
 
-    # 3. train DQN agent with train_online(...)
-    train_online(env, agent, num_episodes=20, model_dir=model_path)
+    agent, model_path = make_cartpole_agent('2_epsdecay', epsilon_decay=3.33e-4)
+    train_online(env, agent, num_episodes=num_eps, model_dir=model_path)
+
+    agent, model_path = make_cartpole_agent('3_boltzmann', epsilon=0.0, boltzmann=True)
+    train_online(env, agent, num_episodes=num_eps, model_dir=model_path)
+    
+    agent, model_path = make_cartpole_agent('4_doubleq', double_q=True)
+    train_online(env, agent, num_episodes=num_eps, model_dir=model_path)
