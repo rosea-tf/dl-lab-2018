@@ -8,19 +8,14 @@ from dqn.networks import *
 import numpy as np
 import argparse
 
+base_path = os.path.join('.', 'cartpole')
+n_test_episodes = 15
+rendering = False
+
 np.random.seed(0)
 
-if __name__ == "__main__":
-
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument(
-    #     "name", help="(directory name under ./cartpole/ of trained model to retrive")
-    # args = parser.parse_args()
-    # model_name = args.name
-
-    model_name = 'basic'  #TODO uncomment
-
-    base_path = os.path.join('.', 'cartpole')
+def evaluate_agent(model_name):
+    
     model_path = os.path.join(base_path, model_name)
 
     # get hypers from the model in this folder
@@ -37,20 +32,19 @@ if __name__ == "__main__":
         discount_factor=hypers['discount_factor'],
         batch_size=hypers['batch_size'],
         epsilon=hypers['epsilon'],
+        epsilon_decay=hypers['epsilon_decay'],
+        boltzmann=hypers['boltzmann'],
         tau=hypers['tau'],
         double_q=hypers['double_q'],
-        eps_method=hypers['eps_method'],
         save_hypers=False)
 
     # retrieve weights
     agent.load(os.path.join(model_path, 'ckpt', 'dqn_agent.ckpt'))
 
-    n_test_episodes = 15
-
     episode_rewards = []
     for i in range(n_test_episodes):
         stats = run_episode(
-            env, agent, deterministic=True, do_training=False, rendering=True)
+            env, agent, deterministic=True, do_training=False, rendering=rendering)
         episode_rewards.append(stats.episode_reward)
 
     # save results in a dictionary and write them into a .json file
@@ -59,9 +53,26 @@ if __name__ == "__main__":
     results["mean"] = np.array(episode_rewards).mean()
     results["std"] = np.array(episode_rewards).std()
 
-
     with open(os.path.join(model_path, "results.json"), "w") as fh:
         json.dump(results, fh)
 
     env.close()
     print('... finished')
+
+
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "name", help="(directory name under ./cartpole/ of trained model to retrieve (or ALL)")
+    args = parser.parse_args()
+    
+    if args.name == 'ALL':
+        for thing in os.listdir(base_path):
+            if os.path.isdir(os.path.join(base_path, thing)):
+                evaluate_agent(thing)
+
+    else:
+        evaluate_agent(args.name)
+
+
