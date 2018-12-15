@@ -103,7 +103,8 @@ def train_online(env, agent, num_episodes, model_dir):
 
     tensorboard.close_session()
     tensorboard_test.close_session()
-#%%
+
+
 def make_cartpole_agent(name, hidden=20, lr=1e-4, discount_factor=0.99, batch_size=64, 
                         epsilon=0.1, epsilon_decay=0.0, boltzmann=False, tau=0.01, double_q=False, save_hypers=True):
 
@@ -148,13 +149,13 @@ if __name__ == "__main__":
     num_eps = 1600
     
     agent, model_path = make_cartpole_agent('1_basic')
-    train_online(env, agent, num_episodes=num_eps, model_dir=model_path)
+    # train_online(env, agent, num_episodes=num_eps, model_dir=model_path)
 
-    agent, model_path = make_cartpole_agent('2_epsdecay', epsilon_decay=3.33e-4)
-    train_online(env, agent, num_episodes=num_eps, model_dir=model_path)
+    # agent, model_path = make_cartpole_agent('2_epsdecay', epsilon_decay=3.33e-4)
+    # train_online(env, agent, num_episodes=num_eps, model_dir=model_path)
 
-    agent, model_path = make_cartpole_agent('3_boltzmann', epsilon=0.0, boltzmann=True)
-    train_online(env, agent, num_episodes=num_eps, model_dir=model_path)
+    # agent, model_path = make_cartpole_agent('3_boltzmann', epsilon=0.0, boltzmann=True)
+    # train_online(env, agent, num_episodes=num_eps, model_dir=model_path)
     
-    agent, model_path = make_cartpole_agent('4_doubleq', double_q=True)
-    train_online(env, agent, num_episodes=num_eps, model_dir=model_path)
+    # agent, model_path = make_cartpole_agent('4_doubleq', double_q=True)
+    # train_online(env, agent, num_episodes=num_eps, model_dir=model_path)

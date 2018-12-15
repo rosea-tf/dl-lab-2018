@@ -1,10 +1,11 @@
 from __future__ import print_function
 
 import gym
-from dqn.agent import DQNAgent
-from train_carracingimport run_episode
-from dqn.networks import *
+from train_carracing import run_episode
+from dqn.dqn_agent_car_racing import DQNAgent
+from dqn.conv_networks import CNN, CNNTargetNetwork
 import numpy as np
+import os
 
 np.random.seed(0)
 
@@ -15,7 +16,11 @@ if __name__ == "__main__":
     history_length =  0
 
     #TODO: Define networks and load agent
-    # ....
+    q = CNN(env.observation_space.shape[0], 5)
+    q_target = CNNTargetNetwork(96*96, 5)
+
+    agent = DQNAgent(q, q_target, 5)
+    agent.load(os.path.join("models_carracing", "dqn_agent.ckpt"))
 
     n_test_episodes = 15
 
@@ -29,14 +34,14 @@ if __name__ == "__main__":
     results["episode_rewards"] = episode_rewards
     results["mean"] = np.array(episode_rewards).mean()
     results["std"] = np.array(episode_rewards).std()
- 
+
     if not os.path.exists("./results"):
-        os.mkdir("./results")  
+        os.mkdir("./results")
 
     fname = "./results/carracing_results_dqn-%s.json" % datetime.now().strftime("%Y%m%d-%H%M%S")
     fh = open(fname, "w")
     json.dump(results, fh)
-            
+
     env.close()
     print('... finished')
 

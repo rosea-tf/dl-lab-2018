@@ -1,9 +1,6 @@
 import tensorflow as tf
 import numpy as np
 
-# TODO: add your Convolutional Neural Network for the CarRacing environment.
-
-
 class NeuralNetwork():
     """
     Neural Network class based on TensorFlow.

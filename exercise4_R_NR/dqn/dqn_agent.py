@@ -3,7 +3,7 @@ import numpy as np
 from dqn.replay_buffer import ReplayBuffer
 
 
-def softmax(x, temperature=1): #TODO
+def softmax(x, temperature=1):  #TODO
     """
     Compute softmax values for each sets of scores in x.
     Used in Boltzmann exploration
@@ -14,8 +14,19 @@ def softmax(x, temperature=1): #TODO
 
 
 class DQNAgent:
-
-    def __init__(self, name, Q_current, Q_target, num_actions, discount_factor, batch_size, epsilon, epsilon_decay, boltzmann, double_q): 
+    def __init__(self,
+                 name,
+                 Q_current,
+                 Q_target,
+                 num_actions,
+                 discount_factor,
+                 batch_size,
+                 epsilon,
+                 epsilon_decay,
+                 boltzmann,
+                 double_q,
+                 buffer_capacity,
+                 random_probs=None):
         """
          Q-Learning agent for off-policy TD control using Function Approximation.
          Finds the optimal greedy policy while following an epsilon-greedy policy.
@@ -29,11 +40,11 @@ class DQNAgent:
             epsilon: Chance to sample a random action. Float betwen 0 and 1.
         """
         # save hyperparameters in folder
-        
-        self.name = name # probably useless
-        self.Q_current = Q_current      
+
+        self.name = name  # probably useless
+        self.Q_current = Q_current
         self.Q_target = Q_target
-        
+
         self.epsilon = epsilon
         self.epsilon_decay = epsilon_decay
         self.boltzmann = boltzmann
@@ -41,18 +52,20 @@ class DQNAgent:
         self.num_actions = num_actions
         self.batch_size = batch_size
         self.discount_factor = discount_factor
+        self.buffer_capacity = buffer_capacity
 
         self.double_q = double_q
 
+        self.random_probs = random_probs
+
         # define replay buffer
-        self.replay_buffer = ReplayBuffer()
+        self.replay_buffer = ReplayBuffer(capacity=buffer_capacity)
 
         # Start tensorflow session
         self.sess = tf.Session()
         self.sess.run(tf.global_variables_initializer())
 
         self.saver = tf.train.Saver()
-
 
     def train(self, state, action, next_state, reward, terminal):
         """
@@ -61,12 +74,13 @@ class DQNAgent:
 
         # TODO:
         # 1. add current transition to replay buffer
-        self.replay_buffer.add_transition(state, action, next_state, reward, terminal)
-        
+        self.replay_buffer.add_transition(state, action, next_state, reward,
+                                          terminal)
 
         # 2. sample next batch
-        batch_states, batch_actions, batch_next_states, batch_rewards, batch_dones = self.replay_buffer.next_batch(self.batch_size)
-        
+        batch_states, batch_actions, batch_next_states, batch_rewards, batch_dones = self.replay_buffer.next_batch(
+            self.batch_size)
+
         # find optimal actions for the sampled s' states
         if self.double_q:
             # double Q learning (select actions using current network, rather than target network)
@@ -75,28 +89,28 @@ class DQNAgent:
             action_selector = self.Q_current
         else:
             action_selector = self.Q_target
-            
 
         # as usual, the Q network returns a vector of... predicted values for every possible action
-        a_prime = np.argmax(action_selector.predict(self.sess, batch_next_states), axis=1)
-        
+        a_prime = np.argmax(
+            action_selector.predict(self.sess, batch_next_states), axis=1)
+
         # pick a''th value from each column of the Q prediction
         # note, this will include action predictions for "done" state, but we'll kill them later
-        q_values_next = self.Q_current.predict(self.sess, batch_next_states)[np.arange(self.batch_size), a_prime]
-        
-        # 2.1 compute td targets: 
+        q_values_next = self.Q_current.predict(
+            self.sess, batch_next_states)[np.arange(self.batch_size), a_prime]
+
+        # 2.1 compute td targets:
         # if done, there will be no next state
-        td_targets = batch_rewards + np.where(batch_dones, 0, self.discount_factor * q_values_next)
-        
-        
+        td_targets = batch_rewards + np.where(
+            batch_dones, 0, self.discount_factor * q_values_next)
+
         # 2.2 update the Q (current) network
-        self.Q_current.update(self.sess, batch_states, batch_actions, td_targets)
-        
-        
+        self.Q_current.update(self.sess, batch_states, batch_actions,
+                              td_targets)
+
         # 2.3 call soft update for target network
-            # this is done by the dodgy associate_method therein
+        # this is done by the dodgy associate_method therein
         self.Q_target.update(self.sess)
-   
 
     def act(self, state, deterministic):
         """
@@ -107,12 +121,13 @@ class DQNAgent:
         Returns:
             action id
         """
-        
+
         # get action probabilities from current network
-        Q_values = np.squeeze(self.Q_current.predict(self.sess, np.expand_dims(state, axis=0)))
-        
+        Q_values = np.squeeze(
+            self.Q_current.predict(self.sess, np.expand_dims(state, axis=0)))
+
         argmax_a = np.argmax(Q_values)
-        
+
         if deterministic:
             # take greedy action
             return argmax_a
@@ -121,32 +136,32 @@ class DQNAgent:
             # implementing an interaction here between boltzmann exploration and epsilon:
             # viz. that epsilon controls the temperature of the softmax function
             # so that as before, higher eps -> higher exploration
-            action_probs = softmax(Q_values, temperature=1/(1-self.epsilon)**2)
-            action = np.random.choice(np.arange(len(action_probs)), p=action_probs)
-        
+            action_probs = softmax(
+                Q_values, temperature=1 / (1 - self.epsilon)**2)
+            action = np.random.choice(
+                np.arange(len(action_probs)), p=action_probs)
+
         else:
             action_probs = np.zeros_like(Q_values)
-            
+
             if np.random.uniform() > self.epsilon:
                 # choose the best action
                 action = argmax_a
             else:
                 # explore
-                action_probs += (self.epsilon / action_probs.size)
-                action_probs[argmax_a] += (1 - self.epsilon)
-                action = np.random.choice(np.arange(len(action_probs)), p=action_probs)
+                if self.random_probs is None:
+                    action = np.random.randint(self.num_actions, size=1)[0]
 
-        # Hint for the exploration in CarRacing: sampling the action from a uniform distribution will probably not work. 
-        # You can sample the agents actions with different probabilities (need to sum up to 1) so that the agent will prefer to accelerate or going straight.
-        # To see how the agent explores, turn the rendering in the training on and look what the agent is doing.
+                else:
+                    action = np.random.choice(
+                        np.arange(self.num_actions), p=self.random_probs)
 
-        # we decay epsilon AFTER we've checked it 
+        # we decay epsilon AFTER we've checked it
         # (nb: if deterministic, epsilon will never decay, but of course this doesn't matter)
         if self.epsilon_decay > 0:
             self.epsilon *= (1 - self.epsilon_decay)
 
         return action
-
 
     def load(self, file_name):
         self.saver.restore(self.sess, file_name)

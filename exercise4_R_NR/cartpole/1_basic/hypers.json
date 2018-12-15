@@ -1,1 +1,1 @@
-{"num_actions": 2, "double_q": false, "epsilon_decay": 0.0, "hidden": 20, "discount_factor": 0.99, "state_dim": 4, "save_hypers": true, "name": "1_basic", "batch_size": 64, "tau": 0.01, "epsilon": 0.1, "boltzmann": false, "lr": 0.0001}
+{"num_actions": 2, "state_dim": 4, "save_hypers": true, "double_q": false, "tau": 0.01, "boltzmann": false, "epsilon_decay": 0.0, "epsilon": 0.1, "batch_size": 64, "discount_factor": 0.99, "lr": 0.0001, "hidden": 20, "name": "1_basic"}
