@@ -1,1 +1,1 @@
-{"name": "3_boltzmann", "discount_factor": 0.99, "buffer_capacity": 500000.0, "epsilon": 0.0, "tau": 0.01, "batch_size": 64, "save_hypers": true, "hidden": 20, "lr": 0.0001, "epsilon_decay": 0.0, "boltzmann": true, "double_q": false}
+{"tau": 0.01, "history_len": 1, "discount_factor": 0.99, "double_q": false, "hidden": 20, "name": "3_boltzmann", "boltzmann": true, "epsilon": 0.0, "save_hypers": true, "epsilon_decay": 0.0, "lr": 0.0001, "batch_size": 64, "buffer_capacity": 500000.0}

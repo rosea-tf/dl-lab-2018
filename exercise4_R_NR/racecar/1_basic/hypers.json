@@ -1,1 +1,1 @@
-{"name": "1_basic", "discount_factor": 0.99, "buffer_capacity": 500000.0, "epsilon": 0.05, "tau": 0.01, "batch_size": 64, "save_hypers": true, "hidden": 20, "lr": 0.0001, "epsilon_decay": 0.0, "boltzmann": false, "double_q": false}
+{"tau": 0.01, "history_len": 1, "discount_factor": 0.99, "double_q": false, "hidden": 20, "name": "1_basic", "boltzmann": false, "epsilon": 0.05, "save_hypers": true, "epsilon_decay": 0.0, "lr": 0.0001, "batch_size": 64, "buffer_capacity": 500000.0}

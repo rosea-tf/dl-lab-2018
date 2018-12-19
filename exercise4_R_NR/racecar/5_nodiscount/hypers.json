@@ -1,1 +1,0 @@
-{"epsilon": 0.05, "batch_size": 64, "save_hypers": true, "name": "5_nodiscount", "hidden": 20, "boltzmann": false, "tau": 0.01, "discount_factor": 1.0, "epsilon_decay": 0.0, "lr": 0.0001, "buffer_capacity": 500000.0, "double_q": false}
