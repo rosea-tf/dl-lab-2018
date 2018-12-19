@@ -1,0 +1,1 @@
+{"name": "3_boltzmann", "discount_factor": 0.99, "buffer_capacity": 500000.0, "epsilon": 0.0, "tau": 0.01, "batch_size": 64, "save_hypers": true, "hidden": 20, "lr": 0.0001, "epsilon_decay": 0.0, "boltzmann": true, "double_q": false}

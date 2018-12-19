@@ -1,0 +1,81 @@
+import os
+from datetime import datetime
+import gym
+import json
+from dqn.dqn_agent import DQNAgent
+from train_racecar import run_episode, make_racecar_agent
+from dqn.conv_networks import CNN, CNNTargetNetwork
+import numpy as np
+import argparse
+
+base_path = os.path.join('.', 'racecar')
+n_test_episodes = 15
+rendering = True
+
+np.random.seed(0)
+
+def evaluate_agent(model_name):
+    
+    model_path = os.path.join(base_path, model_name)
+
+    # get hypers from the model in this folder
+    with open(os.path.join(model_path, "hypers.json"), "r") as fh:
+        hypers = json.load(fh)
+
+    env = gym.make("CarRacing-v0").unwrapped
+
+    history_length =  0
+
+    # some of these hypers won't matter once training is over, but anyway...
+    agent, _ = make_racecar_agent(
+        name=model_name,
+        hidden=hypers['hidden'],
+        lr=hypers['lr'],
+        discount_factor=hypers['discount_factor'],
+        batch_size=hypers['batch_size'],
+        epsilon=hypers['epsilon'],
+        epsilon_decay=hypers['epsilon_decay'],
+        boltzmann=hypers['boltzmann'],
+        tau=hypers['tau'],
+        double_q=hypers['double_q'],
+        buffer_capacity=hypers['buffer_capacity'],
+        save_hypers=False)
+
+    # retrieve weights
+    agent.load(os.path.join(model_path, 'ckpt', 'dqn_agent.ckpt'))
+
+    episode_rewards = []
+    for i in range(n_test_episodes):
+        stats = run_episode(
+            env, agent, deterministic=True, do_training=False, rendering=rendering)
+        episode_rewards.append(stats.episode_reward)
+
+    # save results in a dictionary and write them into a .json file
+    results = dict()
+    results["episode_rewards"] = episode_rewards
+    results["mean"] = np.array(episode_rewards).mean()
+    results["std"] = np.array(episode_rewards).std()
+
+    with open(os.path.join(model_path, "results.json"), "w") as fh:
+        json.dump(results, fh)
+
+    env.close()
+    print('... finished')
+
+
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "name", help="(directory name under ./racecar/ of trained model to retrieve (or ALL)")
+    args = parser.parse_args()
+    
+    if args.name == 'ALL':
+        for thing in os.listdir(base_path):
+            if os.path.isdir(os.path.join(base_path, thing)):
+                evaluate_agent(thing)
+
+    else:
+        evaluate_agent(args.name)
+
+

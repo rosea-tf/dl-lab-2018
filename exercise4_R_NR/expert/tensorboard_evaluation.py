@@ -8,13 +8,10 @@ class Evaluation:
         """
         Creates placeholders for the statistics listed in stats to generate tensorboard summaries.
         e.g. stats = ["loss"]
-        """       
-        if not os.path.exists(store_dir):
-            os.mkdir(store_dir)
-
+        """
         tf.reset_default_graph()
         self.sess = tf.Session()
-        self.tf_writer = tf.summary.FileWriter(store_dir)
+        self.tf_writer = tf.summary.FileWriter(os.path.join(store_dir, "experiment-%s" % datetime.now().strftime("%Y%m%d-%H%M%S") ))
 
         self.stats = stats
         self.pl_stats = {}

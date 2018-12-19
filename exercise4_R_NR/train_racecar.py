@@ -45,7 +45,8 @@ def run_episode(env,
                 do_training=True,
                 rendering=False,
                 max_timesteps=1000,
-                history_length=0):
+                history_length=0,
+                diff_history=False):
     """
     This methods runs one episode for a gym environment.
     deterministic == True => agent executes only greedy actions according the Q function approximator (no random actions).
@@ -77,7 +78,6 @@ def run_episode(env,
 
         action_id = agent.act(state=state, deterministic=deterministic)
         action = id_to_action(action_id)
-        next_state, reward, terminal, info = env.step(action)
 
         # Hint: frame skipping might help you to get better results.
         reward = 0
@@ -111,10 +111,11 @@ def run_episode(env,
     return stats
 
 
-def train_online(env, agent, num_episodes, model_dir, history_length=0):
+def train_online(env, agent, num_episodes, model_dir, history_length=0, diff_history=False):
 
     ckpt_dir = os.path.join(model_dir, "ckpt")
-    tensorboard_dir = os.path.join(model_dir, "tb")
+    
+    tensorboard_dir = os.path.join(".", "racecar", "tensorboard")
 
     for d in [model_dir, ckpt_dir, tensorboard_dir]:
         if not os.path.exists(d):
@@ -129,10 +130,10 @@ def train_online(env, agent, num_episodes, model_dir, history_length=0):
 
     # TODO: make this better
     tensorboard = Evaluation(
-        os.path.join(tensorboard_dir, "train"),
+        os.path.join(tensorboard_dir, agent.name + "_train"),
         ["episode_reward", "straight", "left", "right", "accel", "brake"])
     tensorboard_test = Evaluation(
-        os.path.join(tensorboard_dir, "test"),
+        os.path.join(tensorboard_dir, agent.name + "_test"),
         ["episode_reward", "straight", "left", "right", "accel", "brake"])
 
     # training
@@ -149,7 +150,9 @@ def train_online(env, agent, num_episodes, model_dir, history_length=0):
             deterministic=False,
             do_training=True,
             rendering=False,
-            skip_frames=2)
+            skip_frames=2,
+            history_length=history_length,
+            diff_history=diff_history)
 
         tensorboard.write_episode_data(
             i,
@@ -173,7 +176,10 @@ def train_online(env, agent, num_episodes, model_dir, history_length=0):
                 deterministic=True,
                 do_training=False,
                 rendering=False,
-                skip_frames=2)
+                skip_frames=2,
+                history_length=history_length,
+                diff_history=diff_history)
+
 
             tensorboard_test.write_episode_data(
                 i,
@@ -206,6 +212,7 @@ def make_racecar_agent(name,
                        tau=0.01,
                        double_q=False,
                        buffer_capacity=5e5,
+                       history_len=1,
                        save_hypers=True):
 
     # hidden doesn't do anything here
@@ -228,9 +235,9 @@ def make_racecar_agent(name,
             json.dump(hypers, fh)
 
     # using -1 for unused parameters. fix later.
-    Q_current = CNN(state_dim=-1, num_actions=5, hidden=-1, lr=lr)
+    Q_current = CNN(state_dim=-1, num_actions=5, hidden=-1, lr=lr, history_len=history_len)
     Q_target = CNNTargetNetwork(
-        state_dim=-1, num_actions=5, hidden=-1, lr=lr, tau=tau)
+        state_dim=-1, num_actions=5, hidden=-1, lr=lr, tau=tau, history_len=history_len)
 
     # 2. init DQNAgent (see dqn/dqn_agent.py)
     agent = DQNAgent(
@@ -259,13 +266,25 @@ if __name__ == "__main__":
     agent, model_path = make_racecar_agent('1_basic')
     train_online(env, agent, num_episodes=num_eps, model_dir=model_path)
     
-    agent, model_path = make_racecar_agent('2_epsdecay', epsilon_decay=3.33e-4)
-    train_online(env, agent, num_episodes=num_eps, model_dir=model_path)
+    #agent, model_path = make_racecar_agent('2_epsdecay', epsilon_decay=3.33e-4)
+    #train_online(env, agent, num_episodes=num_eps, model_dir=model_path)
 
     agent, model_path = make_racecar_agent('3_boltzmann', epsilon=0.0, boltzmann=True)
     train_online(env, agent, num_episodes=num_eps, model_dir=model_path)
 
-    agent, model_path = make_racecar_agent('4_doubleq', double_q=True)
-    train_online(env, agent, num_episodes=num_eps, model_dir=model_path)
+    #agent, model_path = make_racecar_agent('4_doubleq', double_q=True)
+    #train_online(env, agent, num_episodes=num_eps, model_dir=model_path)
+
+    # agent, model_path = make_racecar_agent('5_nodiscount', discount_factor=1.0)
+    # train_online(env, agent, num_episodes=num_eps, model_dir=model_path)
+
+    # agent, model_path = make_racecar_agent('6_negdiscount', discount_factor=1.01)
+    # train_online(env, agent, num_episodes=num_eps, model_dir=model_path)
+
+    #agent, model_path = make_racecar_agent('7_history', double_q=True, history_len=2)
+    #train_online(env, agent, num_episodes=num_eps, model_dir=model_path, history_length=1) #the 2 and 1 mean the same thing: 1 extra frame. fix later.
+
+    #agent, model_path = make_racecar_agent('8_hidiscount', double_q=True, discount_factor=0.9)
+    #train_online(env, agent, num_episodes=num_eps, model_dir=model_path) #the 2 and 1 mean the same thing: 1 extra frame. fix later.
 
     env.close()
