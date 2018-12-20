@@ -111,7 +111,7 @@ def run_episode(env,
     return stats
 
 
-def train_online(env, agent, num_episodes, model_dir, history_length=0, diff_history=False):
+def train_online(env, agent, num_episodes, model_dir, history_length=0, diff_history=False, try_resume=False):
 
     ckpt_dir = os.path.join(model_dir, "ckpt")
     
@@ -136,8 +136,20 @@ def train_online(env, agent, num_episodes, model_dir, history_length=0, diff_his
         os.path.join(tensorboard_dir, agent.name + "_test"),
         ["episode_reward", "straight", "left", "right", "accel", "brake"])
 
+    start_episode = 0
+    
+    if try_resume:
+        possible_file = os.path.join(model_path, "epstrained.json")
+        if os.path.exists(possible_file):
+            # get the last ep trained; start at the next one
+            with open(possible_file, "r") as fh:
+                start_episode = json.load(fh) + 1
+            
+            #load up model from previous training session
+            agent.load(os.path.join(model_path, 'ckpt', 'dqn_agent.ckpt'))
+
     # training
-    for i in range(num_episodes):
+    for i in range(start_episode, num_episodes):
         print("episode: ", i)
 
         max_timesteps = min(
@@ -196,6 +208,10 @@ def train_online(env, agent, num_episodes, model_dir, history_length=0, diff_his
         if i % MODEL_SAVE_INTERVAL == 0 or i >= (num_episodes - 1):
             agent.saver.save(agent.sess,
                              os.path.join(ckpt_dir, "dqn_agent.ckpt"))
+
+        # write an episode counter, so that we can resume training later
+        with open(os.path.join(model_path, "epstrained.json"), "w") as fh:
+            json.dump(i, fh)  
 
     tensorboard.close_session()
     tensorboard_test.close_session()
@@ -263,14 +279,14 @@ if __name__ == "__main__":
 
     num_eps = 1000
 
-    agent, model_path = make_racecar_agent('1_basic')
-    train_online(env, agent, num_episodes=num_eps, model_dir=model_path)
+    # agent, model_path = make_racecar_agent('1_basic')
+    # train_online(env, agent, num_episodes=num_eps, model_dir=model_path)
     
     #agent, model_path = make_racecar_agent('2_epsdecay', epsilon_decay=3.33e-4)
     #train_online(env, agent, num_episodes=num_eps, model_dir=model_path)
 
     agent, model_path = make_racecar_agent('3_boltzmann', epsilon=0.0, boltzmann=True)
-    train_online(env, agent, num_episodes=num_eps, model_dir=model_path)
+    train_online(env, agent, num_episodes=num_eps, model_dir=model_path, try_resume=True)
 
     #agent, model_path = make_racecar_agent('4_doubleq', double_q=True)
     #train_online(env, agent, num_episodes=num_eps, model_dir=model_path)

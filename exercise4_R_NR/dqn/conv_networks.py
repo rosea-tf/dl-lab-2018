@@ -110,8 +110,8 @@ class CNNTargetNetwork(CNN):
     Slowly updated target network. Tau indicates the speed of adjustment. If 1,
     it is always set to the values of its associate.
     """
-    def __init__(self, state_dim, num_actions, hidden=20, lr=1e-4, tau=0.01):
-        CNN.__init__(self, state_dim, num_actions, hidden, lr)
+    def __init__(self, state_dim, num_actions, hidden=20, lr=1e-4, tau=0.01, history_len=1):
+        CNN.__init__(self, state_dim, num_actions, hidden, lr, history_len)
         self.tau = tau
         self._associate = self._register_associate()
 
