@@ -315,11 +315,9 @@ if __name__ == "__main__":
 
     # train_online('6_negdiscount', env, discount_factor=1.01)
 
-    # train_online('7_history', env, double_q=True, history_length=1)
-
-    train_online('7_difframe', env, history_length=1, num_episodes=2)
+    train_online('7_history', env, history_length=1, num_episodes=1)
 
     train_online(
-        '8_difframe', env, history_length=1, num_episodes=2, diff_history=True)
+        '8_difframe', env, history_length=1, diff_history=True, num_episodes=1)
 
     env.close()

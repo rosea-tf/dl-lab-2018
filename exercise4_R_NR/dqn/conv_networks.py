@@ -47,10 +47,28 @@ class CNN():
 
         #filter counts
         nf1, nf2, nf3 = (16, 32, 48)
-
-        #filter counts for differentiated history images, if any
-        hfs1, hfs2, hfs3 = (7, 5, 3)
-        hnf1, hnf2, hnf3 = (8, 16, 24)
+        
+        #expand network a bit, if we're using history
+        if history_length > 0:
+            if not diff_history:
+                #images are processed in a single convnet, so...
+                # 50% more layer 1 filters for every additional frame processed
+                nf1 = int(nf1 * (1 + (history_length * 0.5)))
+                # 25% more layer 2 filters for every additional frame processed
+                nf2 = int(nf2 * (1 + (history_length * 0.25)))
+                
+            else:
+                # original convnet processes only one frame, so we leave its size unchanged
+                
+                #filter sizes and counts for subtracted history images
+                hfs1, hfs2, hfs3 = (7, 5, 3)
+                hnf1, hnf2, hnf3 = (8, 16, 24)
+                
+                if history_length > 1:
+                    # 50% more layer 1 filters for every additional frame processed
+                    hnf1 = int(hnf1 * (1 + ((history_length - 1) * 0.5)))
+                    # 25% more layer 2 filters for every additional frame processed
+                    hnf2 = int(hnf2 * (1 + ((history_length - 1) * 0.25)))
 
         # first conv layer
         if not diff_history:
