@@ -14,22 +14,27 @@ rendering = True
 
 np.random.seed(0)
 
+
 def evaluate_agent(model_name):
-    
+
     model_path = os.path.join(base_path, model_name)
 
     # get hypers from the model in this folder
     with open(os.path.join(model_path, "hypers.json"), "r") as fh:
         hypers = json.load(fh)
 
+    #backwards compatibility
+    if 'history_length' not in hypers.keys():
+        hypers['history_length'] = 0
+    if 'diff_history' not in hypers.keys():
+        hypers['diff_history'] = False
+
     env = gym.make("CarRacing-v0").unwrapped
 
-    history_length =  0
-
     # some of these hypers won't matter once training is over, but anyway...
-    agent, _ = make_racecar_agent(
+    agent = make_racecar_agent(
         name=model_name,
-        hidden=hypers['hidden'],
+        model_path=model_path,
         lr=hypers['lr'],
         discount_factor=hypers['discount_factor'],
         batch_size=hypers['batch_size'],
@@ -39,6 +44,8 @@ def evaluate_agent(model_name):
         tau=hypers['tau'],
         double_q=hypers['double_q'],
         buffer_capacity=hypers['buffer_capacity'],
+        history_length=hypers['history_length'],
+        diff_history=hypers['diff_history'],
         save_hypers=False)
 
     # retrieve weights
@@ -47,7 +54,13 @@ def evaluate_agent(model_name):
     episode_rewards = []
     for i in range(n_test_episodes):
         stats = run_episode(
-            env, agent, deterministic=True, do_training=False, rendering=rendering)
+            env,
+            agent,
+            deterministic=True,
+            do_training=False,
+            rendering=rendering,
+            history_length=hypers['history_length'],
+            diff_history=hypers['diff_history'])
         episode_rewards.append(stats.episode_reward)
 
     # save results in a dictionary and write them into a .json file
@@ -67,9 +80,12 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "name", help="(directory name under ./racecar/ of trained model to retrieve (or ALL)")
+        "name",
+        help=
+        "(directory name under ./racecar/ of trained model to retrieve (or ALL)"
+    )
     args = parser.parse_args()
-    
+
     if args.name == 'ALL':
         for thing in os.listdir(base_path):
             if os.path.isdir(os.path.join(base_path, thing)):
@@ -77,5 +93,3 @@ if __name__ == "__main__":
 
     else:
         evaluate_agent(args.name)
-
-

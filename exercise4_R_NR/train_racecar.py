@@ -1,8 +1,5 @@
-# %% Definitions
-
 import numpy as np
 import gym
-import itertools as it
 from dqn.dqn_agent import DQNAgent
 from tensorboard_evaluation import Evaluation
 from dqn.conv_networks import CNN, CNNTargetNetwork
@@ -10,12 +7,8 @@ from utils import *
 import os
 import json
 
-#%%
-
 MODEL_TEST_INTERVAL = 10  # after this number of episodes, test agent with deterministic actions
 MODEL_SAVE_INTERVAL = 100  # yep
-
-# %%
 
 
 def state_preprocessing(state):
@@ -67,14 +60,15 @@ def run_episode(env,
     # append image history to first state
     state = state_preprocessing(state)
     image_hist.extend([state] * (history_length + 1))
-    state = np.array(image_hist).reshape(96, 96, history_length + 1)
+    # state = np.array(image_hist).reshape(96, 96, history_length + 1)
+    state = np.array(image_hist[::-1]).transpose(1, 2, 0)
+
+    if diff_history:
+        # current image is at zero, so go through 1...n and subtract current from them
+        for i in range(1, state.shape[-1]):
+            state[..., i] -= state[..., 0]
 
     while True:
-
-        # TODO: get action_id from agent
-        # Hint: adapt the probabilities of the 5 actions for random sampling so that the agent explores properly.
-        # action_id = agent.act(...)
-        # action = your_id_to_action_method(...)
 
         action_id = agent.act(state=state, deterministic=deterministic)
         action = id_to_action(action_id)
@@ -94,7 +88,16 @@ def run_episode(env,
         next_state = state_preprocessing(next_state)
         image_hist.append(next_state)
         image_hist.pop(0)
-        next_state = np.array(image_hist).reshape(96, 96, history_length + 1)
+        # next_state = np.array(image_hist).reshape(96, 96, history_length + 1)
+        next_state = np.array(image_hist[::-1]).transpose(1, 2, 0)
+
+        # so state and next_state are now both np.arrays, of the right length
+        
+        if diff_history:
+            # current image is at zero, so go through 1...n and subtract current from them
+            for i in range(1, next_state.shape[-1]):
+                next_state[..., i] -= next_state[..., 0]
+
 
         if do_training:
             agent.train(state, action_id, next_state, reward, terminal)
@@ -111,40 +114,69 @@ def run_episode(env,
     return stats
 
 
-def train_online(env, agent, num_episodes, model_dir, history_length=0, diff_history=False, try_resume=False):
+def train_online(name,
+                 env,
+                 num_episodes=1000,
+                 lr=1e-4,
+                 discount_factor=0.99,
+                 batch_size=64,
+                 epsilon=0.05,
+                 epsilon_decay=0.0,
+                 boltzmann=False,
+                 tau=0.01,
+                 double_q=False,
+                 buffer_capacity=5e5,
+                 history_length=0,
+                 diff_history=False,
+                 try_resume=False):
 
-    ckpt_dir = os.path.join(model_dir, "ckpt")
-    
-    tensorboard_dir = os.path.join(".", "racecar", "tensorboard")
+    print("AGENT: " + name)
+    print("\t... creating agent")
 
-    for d in [model_dir, ckpt_dir, tensorboard_dir]:
+    # prepare folders
+    model_path = os.path.join(base_path, name)
+    ckpt_path = os.path.join(model_path, "ckpt")
+    tensorboard_path = os.path.join(base_path, "tensorboard")
+
+    for d in [model_path, ckpt_path, tensorboard_path]:
         if not os.path.exists(d):
             os.mkdir(d)
 
-    print("... train agent")
+    agent = make_racecar_agent(
+        name,
+        model_path,
+        lr,
+        discount_factor,
+        batch_size,
+        epsilon,
+        epsilon_decay,
+        boltzmann,
+        tau,
+        double_q,
+        buffer_capacity,
+        history_length,
+        diff_history,
+        save_hypers=True)
 
-    # this might be a dumb idea -- doesn't check that models are the same
-    # if os.path.exists(os.path.join(ckpt_dir, 'checkpoint')):
-    #     print ("...existing model found! loading")
-    #     agent.load(os.path.join(ckpt_dir, 'dqn_agent.ckpt'))
+    print("... training agent")
 
-    # TODO: make this better
+    # todo? make this better
     tensorboard = Evaluation(
-        os.path.join(tensorboard_dir, agent.name + "_train"),
+        os.path.join(tensorboard_path, agent.name + "_train"),
         ["episode_reward", "straight", "left", "right", "accel", "brake"])
     tensorboard_test = Evaluation(
-        os.path.join(tensorboard_dir, agent.name + "_test"),
+        os.path.join(tensorboard_path, agent.name + "_test"),
         ["episode_reward", "straight", "left", "right", "accel", "brake"])
 
     start_episode = 0
-    
+
     if try_resume:
         possible_file = os.path.join(model_path, "epstrained.json")
         if os.path.exists(possible_file):
             # get the last ep trained; start at the next one
             with open(possible_file, "r") as fh:
                 start_episode = json.load(fh) + 1
-            
+
             #load up model from previous training session
             agent.load(os.path.join(model_path, 'ckpt', 'dqn_agent.ckpt'))
 
@@ -192,58 +224,38 @@ def train_online(env, agent, num_episodes, model_dir, history_length=0, diff_his
                 history_length=history_length,
                 diff_history=diff_history)
 
-
             tensorboard_test.write_episode_data(
                 i,
                 eval_dict={
-                    "episode_reward": stats.episode_reward,
-                    "straight": stats.get_action_usage(STRAIGHT),
-                    "left": stats.get_action_usage(LEFT),
-                    "right": stats.get_action_usage(RIGHT),
-                    "accel": stats.get_action_usage(ACCELERATE),
-                    "brake": stats.get_action_usage(BRAKE)
+                    "episode_reward": stats_test.episode_reward,
+                    "straight": stats_test.get_action_usage(STRAIGHT),
+                    "left": stats_test.get_action_usage(LEFT),
+                    "right": stats_test.get_action_usage(RIGHT),
+                    "accel": stats_test.get_action_usage(ACCELERATE),
+                    "brake": stats_test.get_action_usage(BRAKE)
                 })
 
         # store model every 100 episodes and in the end.
         if i % MODEL_SAVE_INTERVAL == 0 or i >= (num_episodes - 1):
             agent.saver.save(agent.sess,
-                             os.path.join(ckpt_dir, "dqn_agent.ckpt"))
+                             os.path.join(ckpt_path, "dqn_agent.ckpt"))
 
         # write an episode counter, so that we can resume training later
         with open(os.path.join(model_path, "epstrained.json"), "w") as fh:
-            json.dump(i, fh)  
+            json.dump(i, fh)
 
     tensorboard.close_session()
     tensorboard_test.close_session()
 
 
-def make_racecar_agent(name,
-                       hidden=20,
-                       lr=1e-4,
-                       discount_factor=0.99,
-                       batch_size=64,
-                       epsilon=0.05,
-                       epsilon_decay=0.0,
-                       boltzmann=False,
-                       tau=0.01,
-                       double_q=False,
-                       buffer_capacity=5e5,
-                       history_len=1,
-                       save_hypers=True):
-
-    # hidden doesn't do anything here
+def make_racecar_agent(name, model_path, lr, discount_factor,
+                       batch_size, epsilon, epsilon_decay, boltzmann, tau,
+                       double_q, buffer_capacity, history_length, diff_history,
+                       save_hypers):
 
     hypers = locals()
 
     num_actions = 5
-
-    # prepare a model folder
-    base_path = os.path.join('.', 'racecar')
-    if not os.path.exists(base_path):
-        os.mkdir(base_path)
-    model_path = os.path.join(base_path, name)
-    if not os.path.exists(model_path):
-        os.mkdir(model_path)
 
     # save hypers into folder -- used for reconstructing model at test time
     if save_hypers:
@@ -251,9 +263,18 @@ def make_racecar_agent(name,
             json.dump(hypers, fh)
 
     # using -1 for unused parameters. fix later.
-    Q_current = CNN(state_dim=-1, num_actions=5, hidden=-1, lr=lr, history_len=history_len)
+    Q_current = CNN(
+        num_actions=5,
+        lr=lr,
+        history_length=history_length,
+        diff_history=diff_history)
+
     Q_target = CNNTargetNetwork(
-        state_dim=-1, num_actions=5, hidden=-1, lr=lr, tau=tau, history_len=history_len)
+        num_actions=5,
+        lr=lr,
+        tau=tau,
+        history_length=history_length,
+        diff_history=diff_history)
 
     # 2. init DQNAgent (see dqn/dqn_agent.py)
     agent = DQNAgent(
@@ -270,37 +291,35 @@ def make_racecar_agent(name,
         buffer_capacity,
         random_probs=[3 / 10, 1 / 10, 1 / 10, 3 / 10, 2 / 10])
 
-    return agent, model_path
+    return agent
 
 
 if __name__ == "__main__":
 
     env = gym.make('CarRacing-v0').unwrapped
 
-    num_eps = 1000
+    # prepare a model folder
+    base_path = os.path.join('.', 'racecar')
+    if not os.path.exists(base_path):
+        os.mkdir(base_path)
 
-    # agent, model_path = make_racecar_agent('1_basic')
-    # train_online(env, agent, num_episodes=num_eps, model_dir=model_path)
-    
-    #agent, model_path = make_racecar_agent('2_epsdecay', epsilon_decay=3.33e-4)
-    #train_online(env, agent, num_episodes=num_eps, model_dir=model_path)
+    # train_online('1_basic', env)
 
-    agent, model_path = make_racecar_agent('3_boltzmann', epsilon=0.0, boltzmann=True)
-    train_online(env, agent, num_episodes=num_eps, model_dir=model_path, try_resume=True)
+    # train_online('2_epsdecay', env, epsilon_decay=1e-3)
 
-    #agent, model_path = make_racecar_agent('4_doubleq', double_q=True)
-    #train_online(env, agent, num_episodes=num_eps, model_dir=model_path)
+    # train_online('3_boltzmann', env, epsilon=0.0, boltzmann=True, try_resume=True)
 
-    # agent, model_path = make_racecar_agent('5_nodiscount', discount_factor=1.0)
-    # train_online(env, agent, num_episodes=num_eps, model_dir=model_path)
+    # train_online('4_doubleq', env, double_q=True)
 
-    # agent, model_path = make_racecar_agent('6_negdiscount', discount_factor=1.01)
-    # train_online(env, agent, num_episodes=num_eps, model_dir=model_path)
+    # train_online('5_nodiscount', env, discount_factor=1.0)
 
-    #agent, model_path = make_racecar_agent('7_history', double_q=True, history_len=2)
-    #train_online(env, agent, num_episodes=num_eps, model_dir=model_path, history_length=1) #the 2 and 1 mean the same thing: 1 extra frame. fix later.
+    # train_online('6_negdiscount', env, discount_factor=1.01)
 
-    #agent, model_path = make_racecar_agent('8_hidiscount', double_q=True, discount_factor=0.9)
-    #train_online(env, agent, num_episodes=num_eps, model_dir=model_path) #the 2 and 1 mean the same thing: 1 extra frame. fix later.
+    # train_online('7_history', env, double_q=True, history_length=1)
+
+    train_online('7_difframe', env, history_length=1, num_episodes=2)
+
+    train_online(
+        '8_difframe', env, history_length=1, num_episodes=2, diff_history=True)
 
     env.close()
