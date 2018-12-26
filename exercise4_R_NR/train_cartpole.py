@@ -14,6 +14,7 @@ import json
 
 MODEL_TEST_INTERVAL = 10 # after this number of episodes, test agent with deterministic actions
 MODEL_SAVE_INTERVAL = 100 # yep
+base_path = os.path.join('.', 'cartpole')
 
 
 # %%
@@ -56,9 +57,9 @@ def run_episode(env, agent, deterministic, do_training=True, rendering=False, ma
 def train_online(env, agent, num_episodes, model_dir):
 
     ckpt_dir = os.path.join(model_dir, "ckpt")
-    tensorboard_dir = os.path.join(model_dir, "tb")
+    tensorboard_path = os.path.join(base_path, "tensorboard")
     
-    for d in [model_dir, ckpt_dir, tensorboard_dir]:
+    for d in [model_dir, ckpt_dir, tensorboard_path]:
         if not os.path.exists(d):
             os.mkdir(d)
 
@@ -70,10 +71,12 @@ def train_online(env, agent, num_episodes, model_dir):
     #     agent.load(os.path.join(ckpt_dir, 'dqn_agent.ckpt'))
             
     # TODO: make this better
-    tensorboard = Evaluation(os.path.join(tensorboard_dir, "train"), [
-                             "episode_reward", "left", "right"])
-    tensorboard_test = Evaluation(os.path.join(tensorboard_dir, "test"), [
-                                  "episode_reward", "left", "right"])
+    tensorboard = Evaluation(
+        os.path.join(tensorboard_path, agent.name + "_train"),
+                             ["episode_reward", "left", "right"])
+    tensorboard_test = Evaluation(
+        os.path.join(tensorboard_path, agent.name + "_test"),
+                                  ["episode_reward", "left", "right"])
 
     # training
     for i in range(num_episodes):
@@ -115,7 +118,6 @@ def make_cartpole_agent(name, hidden=20, lr=1e-4, discount_factor=0.99, batch_si
     hypers = locals()
 
     # prepare a model folder
-    base_path = os.path.join('.', 'cartpole')
     if not os.path.exists(base_path):
         os.mkdir(base_path)
     model_path = os.path.join(base_path, name)
@@ -133,7 +135,7 @@ def make_cartpole_agent(name, hidden=20, lr=1e-4, discount_factor=0.99, batch_si
 
     # 2. init DQNAgent (see dqn/dqn_agent.py)
     agent = DQNAgent(name, Q_current, Q_target, num_actions,
-                     discount_factor, batch_size, epsilon, epsilon_decay, boltzmann, double_q)
+                     discount_factor, batch_size, epsilon, epsilon_decay, boltzmann, double_q, buffer_capacity=1e5)
     
     return agent, model_path
 

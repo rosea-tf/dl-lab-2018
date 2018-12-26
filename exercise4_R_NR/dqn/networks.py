@@ -81,7 +81,17 @@ class TargetNetwork(NeuralNetwork):
     """
 
     def __init__(self, state_dim, num_actions, hidden=20, lr=1e-4, tau=0.01):
+
+        # check that the _register_associates method won't fuck us up
+        num_vars_before = len(tf.trainable_variables())
+
         NeuralNetwork.__init__(self, state_dim, num_actions, hidden, lr)
+
+        num_vars_after = len(tf.trainable_variables())
+
+        assert num_vars_after == 2 * num_vars_before
+
+
         self.tau = tau
         self._associate = self._register_associate()
 

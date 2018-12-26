@@ -9,13 +9,14 @@ import numpy as np
 import argparse
 
 base_path = os.path.join('.', 'cartpole')
-n_test_episodes = 15
+n_test_episodes = 100
 rendering = False
 
 np.random.seed(0)
 
 def evaluate_agent(model_name):
     
+    tf.reset_default_graph() #this seems to help consecutive testing
     model_path = os.path.join(base_path, model_name)
 
     # get hypers from the model in this folder
