@@ -1,0 +1,1 @@
+{"epsilon_decay": 0.0, "epsilon": 0.05, "double_q": true, "tau": 0.01, "discount_factor": 0.99, "history_length": 0, "save_hypers": true, "diff_history": false, "model_path": "./racecar/4_doubleq", "batch_size": 64, "lr": 0.0001, "boltzmann": false, "buffer_capacity": 500000.0, "name": "4_doubleq"}

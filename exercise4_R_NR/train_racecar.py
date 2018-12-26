@@ -34,6 +34,7 @@ def id_to_action(action_id):
 def run_episode(env,
                 agent,
                 deterministic,
+                softmax=False,
                 skip_frames=0,
                 do_training=True,
                 rendering=False,
@@ -192,6 +193,7 @@ def train_online(name,
             agent,
             max_timesteps=max_timesteps,
             deterministic=False,
+            softmax=False,
             do_training=True,
             rendering=False,
             skip_frames=2,
@@ -210,14 +212,13 @@ def train_online(name,
             })
 
         if i % MODEL_TEST_INTERVAL == 0 or i >= (num_episodes - 1):
-            # evaluate your agent once in a while for some episodes using run_episode(env, agent, deterministic=True, do_training=False) to
-            # check its performance with greedy actions only. You can also use tensorboard to plot the mean episode reward.
 
             stats_test = run_episode(
                 env,
                 agent,
                 max_timesteps=max_timesteps,
                 deterministic=True,
+                softmax=False,
                 do_training=False,
                 rendering=False,
                 skip_frames=2,
@@ -309,15 +310,14 @@ if __name__ == "__main__":
 
     # train_online('3_boltzmann', env, epsilon=0.0, boltzmann=True, try_resume=True)
 
-    # train_online('4_doubleq', env, double_q=True)
+    #train_online('4_doubleq', env, double_q=True)
 
     # train_online('5_nodiscount', env, discount_factor=1.0)
 
     # train_online('6_negdiscount', env, discount_factor=1.01)
 
-    train_online('7_history', env, history_length=1, num_episodes=1)
+    train_online('7_history', env, history_length=1, try_resume=True)
 
-    train_online(
-        '8_difframe', env, history_length=1, diff_history=True, num_episodes=1)
+    #train_online('8_difframe', env, history_length=1, diff_history=True, try_resume=True)
 
     env.close()

@@ -1,0 +1,1 @@
+{"lr": 0.0001, "double_q": false, "epsilon_decay": 0.0, "model_path": "./racecar/8_difframe", "epsilon": 0.05, "diff_history": true, "history_length": 1, "boltzmann": false, "save_hypers": true, "tau": 0.01, "batch_size": 64, "buffer_capacity": 500000.0, "name": "8_difframe", "discount_factor": 0.99}
