@@ -19,7 +19,7 @@ np.random.seed(0)
 def evaluate_agent(model_name, softmax=False):
     print ("MODEL: " + model_name + "" if not softmax else " (softmax))")
 
-    tf.reset_default_graph()
+    tf.reset_default_graph() #this seems to help consecutive testing
     model_path = os.path.join(base_path, model_name)
 
     # check if already done
@@ -122,5 +122,5 @@ if __name__ == "__main__":
                     evaluate_agent(thing, softmax=True)
 
     else:
-        #evaluate_agent(args.name)
+        evaluate_agent(args.name)
         evaluate_agent(args.name, softmax=True)

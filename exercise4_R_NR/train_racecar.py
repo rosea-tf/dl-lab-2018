@@ -30,6 +30,31 @@ def id_to_action(action_id):
 
     return a
 
+def is_close(a,colors,eps=0.02):
+    for color in colors:
+        if abs(a-color) < eps:
+            return True
+
+    return False
+
+
+def lane_penalty(state):
+    green_colors = [0.68, 0.75]
+
+    ## check for green values (174.??? or 192.???)
+    left_sensor = state[68, 44, 0]
+    right_sensor = state[68, 51, 0]
+
+    offlane_left = is_close(left_sensor, green_colors)
+    offlane_right = is_close(right_sensor, green_colors)
+
+    if offlane_left and offlane_right:
+        return -1.0  # bad buggy: completely of track, high penalty
+    elif offlane_left or offlane_right:
+        return -0.0  # one side off track
+    else:
+        return 0.0
+
 
 def run_episode(env,
                 agent,
@@ -40,7 +65,8 @@ def run_episode(env,
                 rendering=False,
                 max_timesteps=1000,
                 history_length=0,
-                diff_history=False):
+                diff_history=False,
+                apply_lane_penalty=False):
     """
     This methods runs one episode for a gym environment.
     deterministic == True => agent executes only greedy actions according the Q function approximator (no random actions).
@@ -99,6 +125,9 @@ def run_episode(env,
             for i in range(1, next_state.shape[-1]):
                 next_state[..., i] -= next_state[..., 0]
 
+        # only after zooming (after 50 steps), apply lane penalty
+        if step > 50/(skip_frames+1) and apply_lane_penalty:
+            reward += lane_penalty(next_state) # add lane penalty to reward
 
         if do_training:
             agent.train(state, action_id, next_state, reward, terminal)
@@ -129,6 +158,7 @@ def train_online(name,
                  buffer_capacity=5e5,
                  history_length=0,
                  diff_history=False,
+                 apply_lane_penalty=False,
                  try_resume=False):
 
     print("AGENT: " + name)
@@ -198,7 +228,8 @@ def train_online(name,
             rendering=False,
             skip_frames=2,
             history_length=history_length,
-            diff_history=diff_history)
+            diff_history=diff_history,
+            apply_lane_penalty=apply_lane_penalty)
 
         tensorboard.write_episode_data(
             i,
@@ -247,6 +278,9 @@ def train_online(name,
 
     tensorboard.close_session()
     tensorboard_test.close_session()
+    
+    # run the testing from here
+    os.system("python3 test_racecar.py " + name)
 
 
 def make_racecar_agent(name, model_path, lr, discount_factor,
@@ -316,8 +350,10 @@ if __name__ == "__main__":
 
     # train_online('6_negdiscount', env, discount_factor=1.01)
 
-    train_online('7_history', env, history_length=1, try_resume=True)
+    #train_online('7_history', env, history_length=1, try_resume=True)
 
     #train_online('8_difframe', env, history_length=1, diff_history=True, try_resume=True)
+
+    train_online('9_diffpenalty', env, history_length=1, diff_history=True, apply_lane_penalty=True, epsilon_decay=1e-3, try_resume=True)
 
     env.close()

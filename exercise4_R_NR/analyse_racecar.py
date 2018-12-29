@@ -38,6 +38,7 @@ get_model_results('3_boltzmann')
 get_model_results('4_doubleq')
 get_model_results('7_history')
 get_model_results('8_difframe')
+get_model_results('9_diffpenalty')
 
 
 # %% Plot training curves
@@ -71,3 +72,6 @@ doplot([['2_epsdecay', 'Epsilon Decay'], ['3_boltzmann', 'Boltzmann Exp\'n']],
 
 doplot([['7_history', 'History Frame'], ['8_difframe', 'Difference Frame']],
        'figs/racecar_3.png')
+
+doplot([['8_difframe', 'Difference Frame'], ['9_diffpenalty', 'Diff. Frame +\noff track penalty']],
+       'figs/racecar_4.png')

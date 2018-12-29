@@ -1,0 +1,1 @@
+{"lr": 0.0001, "epsilon_decay": 0.001, "save_hypers": true, "model_path": "./racecar/9_diffpenalty", "tau": 0.01, "double_q": false, "diff_history": true, "epsilon": 0.05, "history_length": 1, "buffer_capacity": 500000.0, "discount_factor": 0.99, "boltzmann": false, "batch_size": 64, "name": "9_diffpenalty"}
