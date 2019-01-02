@@ -1,0 +1,1 @@
+{"history_length": 1, "diff_history": true, "lr": 0.0001, "double_q": false, "buffer_capacity": 500000.0, "name": "10_dpbig", "tau": 0.01, "discount_factor": 0.99, "big": true, "epsilon_decay": 0.001, "model_path": "./racecar/10_dpbig", "save_hypers": true, "epsilon": 0.05, "boltzmann": false, "batch_size": 64}

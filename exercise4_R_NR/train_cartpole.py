@@ -151,13 +151,13 @@ if __name__ == "__main__":
     num_eps = 1600
     
     agent, model_path = make_cartpole_agent('1_basic')
-    # train_online(env, agent, num_episodes=num_eps, model_dir=model_path)
+    train_online(env, agent, num_episodes=num_eps, model_dir=model_path)
 
-    # agent, model_path = make_cartpole_agent('2_epsdecay', epsilon_decay=3.33e-4)
-    # train_online(env, agent, num_episodes=num_eps, model_dir=model_path)
+    agent, model_path = make_cartpole_agent('2_epsdecay', epsilon_decay=3.33e-4)
+    train_online(env, agent, num_episodes=num_eps, model_dir=model_path)
 
-    # agent, model_path = make_cartpole_agent('3_boltzmann', epsilon=0.0, boltzmann=True)
-    # train_online(env, agent, num_episodes=num_eps, model_dir=model_path)
+    agent, model_path = make_cartpole_agent('3_boltzmann', epsilon=0.0, boltzmann=True)
+    train_online(env, agent, num_episodes=num_eps, model_dir=model_path)
     
-    # agent, model_path = make_cartpole_agent('4_doubleq', double_q=True)
-    # train_online(env, agent, num_episodes=num_eps, model_dir=model_path)
+    agent, model_path = make_cartpole_agent('4_doubleq', double_q=True)
+    train_online(env, agent, num_episodes=num_eps, model_dir=model_path)

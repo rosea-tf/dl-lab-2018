@@ -1,0 +1,293 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%2345678901234567890123456789012345678901234567890123456789012345678901234567890
+%        1         2         3         4         5         6         7         8
+
+%\documentclass[letterpaper, 10 pt, conference]{ieeeconf}  % Comment this line out if you need a4paper
+
+\documentclass[a4paper, 11pt, conference]{ieeeconf}      % Use this line for a4 paper
+
+%\IEEEoverridecommandlockouts                              % This command is only needed if
+                                                          % you want to use the \thanks command
+
+%\overrideIEEEmargins                                      % Needed to meet printer requirements.
+
+%In case you encounter the following error:
+%Error 1010 The PDF file may be corrupt (unable to open PDF file) OR
+%Error 1000 An error occurred while parsing a contents stream. Unable to analyze the PDF file.
+%This is a known problem with pdfLaTeX conversion filter. The file cannot be opened with acrobat reader
+%Please use one of the alternatives below to circumvent this error by uncommenting one or the other
+%\pdfobjcompresslevel=0
+%\pdfminorversion=4
+
+% See the \addtolength command later in the file to balance the column lengths
+% on the last page of the document
+
+\usepackage[parfill]{parskip} % Activate to begin paragraphs with an empty line rather than an indent
+
+\usepackage{booktabs} % for much better looking tables
+
+
+% The following packages can be found on http:\\www.ctan.org
+%\usepackage{graphics} % for pdf, bitmapped graphics files
+%\usepackage{epsfig} % for postscript graphics files
+%\usepackage{mathptmx} % assumes new font selection scheme installed
+%\usepackage{times} % assumes new font selection scheme installed
+\usepackage{amsmath} % assumes amsmath package installed
+\usepackage[utf8]{inputenc}
+% scientific unit package
+\usepackage{siunitx}
+% for images
+\usepackage{graphicx}
+\usepackage{gensymb}
+\usepackage{textcomp}
+\usepackage{float}
+\usepackage{url}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\hypersetup{
+  colorlinks   = true, %Colours links instead of ugly boxes
+  urlcolor     = blue, %Colour for external hyperlinks
+  linkcolor    = black, %Colour of internal links
+  citecolor   = red %Colour of citations
+}
+%\usepackage{amssymb}  % assumes amsmath package installed
+
+\DeclareSIUnit{\sample}{S}
+
+\title{\LARGE \bf
+Deep Learning Lab Exercise 4: Reinforcement Learning}
+
+\author{[AUTHOR'S NAME REDACTED], Alex Rose (4653309)}
+
+
+\begin{document}
+\sisetup{quotient-mode=fraction,per-mode=symbol, mode=math}
+
+
+
+\maketitle
+%\thispagestyle{empty}
+%\pagestyle{empty}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{abstract}
+
+(Figure out later).
+
+\end{abstract}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{CartPole}
+
+We begin the classic control task of CartPole. Instead of imitation learning where the agent analyses expert play to learn the relationship between states and ideal actions (as in Exercise 3), here we use Q-Learning, where the agent samples from a palette of actions in each state, and gradually learns to paramaterise a function $Q(State, Action) = Reward$. In the CartPole instance our state is a 4-dimensional vector; our function is a simple neural network consisting of two fully-connected 20-unit hidden layers with ReLU activation; and we have two possible actions: \textit{Left} and \textit{Right}.
+
+We also implemented the following bonus features:
+
+\begin{itemize}
+	\item \textbf{Epsilon Annealing}: in which our probability $\epsilon$ of selecting a random (non-optimal) action is reduced from its starting value by a factor of $3.33 \times 10^{-4}$ after each episode. This gradually shifts the agent's priorities from exploration to exploitation, as time goes on.
+	
+	\item \textbf{Boltzmann Exploration}, where instead of selecting randomly with probability $\epsilon$ and optimally with probability $1 - \epsilon$, the agent samples an action according to the SoftMax of its action predictions (with optional SoftMax temperature parameter). This allows the agent to shift from exploration to exploitation only when it becomes more certain about its predicted action-values.
+	
+	\item \textbf{Double-Q learning}, where actions are selected using the \textit{current} network, but still evaluated using the \textit{target} network. This decorrelates the noise in the two networks, theoretically avoiding overestimation bias in the $Q$ function.
+	
+\end{itemize}
+
+Training was over 1,600 episodes with Adam as our optimiser, learning rate $10^{-4}$, batch size 64, buffer capacity of $100,000$, target network update parameter $\tau=0.01$, and $\epsilon=0.1$ initially. We see that Boltzmann Exploration creates a high performance agent much more quickly than Basic or Double Q Learning, presumably because in the early episodes when the agent has little idea of the best move, Boltzmann encourages it to explore \textit{much} more than a fixed epsilon parameter would allow. Epsilon Annealing, on the other hand, starts out very promisingly, but has a disastrous spell later and forgets everything useful it has learned (Figure \ref{fig:train0}). We then tested each agent over 100 episodes, and found that the Boltzmann agent has learned to play perfectly with an average score over 1000, and the Double Q agent, though less impressive, has still solved the problem, with an average score over 200 (Figure \ref{fig:test0}). We should note that these results are very high-variance; in previous runs, we saw agents with identical configurations having very different training curves. Therefore, they should not be taken (for example) as definitive proof that Boltzmann exploration is the best method to solve this problem.
+
+\begin{figure}
+  \includegraphics[width=\linewidth]{figs/cartpole_reward.png}
+  \caption{Reward over training epochs for Cartpole models: \textcolor{blue}{Default}; \textcolor{teal}{Epsilon Annealing}; \textcolor{cyan}{Boltzmann Exploration}; \textcolor{orange}{Double Q}
+  \label{fig:train0}
+\end{figure}
+
+\begin{figure}
+  \includegraphics[width=\linewidth]{figs/cartpole_test.png}
+  \caption{Test results for Cartpole models}
+  \label{fig:test0}
+\end{figure}
+
+\section{Car Racing}
+
+Now onto car racing. Again. We reused the same Q learning algorithm, code, and hyperparameters as in CartPole, but with the following modifications to suit the new environment:
+
+\begin{itemize}
+	\item Images preprocessed to greyscale, as per the provided code
+	
+	\item A deep convnet, as described in Table \ref{table:agent1}.
+	
+  \item Continuous actions discretised simply to \textit{Nothing, Left, Right, Accelerate, Brake}
+  
+  \item A replay buffer of size $500,000$.
+  
+  \item Frameskip of 2 during training (i.e. every third frame is seen and acted upon, and actions persist over the next two frames). At test time, no frameskip is used.
+	
+\end{itemize}
+
+\begin{table}
+  \centering
+  \caption{Racecar Q-network architecture}
+  \label{table:agent1}
+  \begin{tabular}{ll}
+  Layer & Parameters \\ \hline
+  Convolution 1 / ReLU & Filters: 16, Size: 7 \\
+  Max Pooling & Size: 2, Stride: 1\\
+  Convolution 2 / ReLU & Filters: 32, Size: 5 \\
+  Max Pooling & Size: 2, Stride: 1\\
+  Convolution 3 / ReLU & Filters: 48, Size: 3 \\
+  Max Pooling & Size: 2, Stride: 1\\
+  FC layer 1 / ReLU & 512 units\\
+  FC layer 2 / ReLU & 128 units\\
+  Output & 5 units\\
+  \end{tabular}
+  \end{table}
+
+For agent testing, we used two methods:
+
+\begin{enumerate}
+	\item Actions selected using the maximum prediction from the Q network, leading to discrete actions.
+	\item Actions combined using proportions in the Softmax of the last layer, leading to continuous (and noticeably more "noisy") actions.
+\end{enumerate}
+
+All seeds (in Numpy, TensorFlow and the Gym environment) were set to 0 to allow reproducability in testing.
+
+\begin{figure}
+  \includegraphics[width=\linewidth]{figs/racecar_train_1.png}
+  \caption{Training curves for \textcolor{orange}{Basic Model} and \textcolor{gray}{Double Q learning}}
+  \label{fig:train1}
+\end{figure}
+
+\begin{figure}
+  \includegraphics[width=\linewidth]{figs/racecar_1.png}
+  \caption{Test results for Basic Model and Double Q learning}
+  \label{fig:test1}
+\end{figure}
+
+\begin{figure}
+  \includegraphics[width=\linewidth]{figs/racecar_train_2.png}
+  \caption{Training curves for \textcolor{magenta}{Epsilon Annealing} and \textcolor{red}{Boltzmann Exploration}}
+  \label{fig:train2}
+\end{figure}
+
+\begin{figure}
+  \includegraphics[width=\linewidth]{figs/racecar_2.png}
+  \caption{Test results for Epsilon Annealing and Boltzmann Exploration}
+  \label{fig:test2}
+\end{figure}
+
+Figure \ref{fig:test2} shows our agents doing reasonably well already, with many average scores over 800. Notably, Boltzmann exploration does much worse here than in CartPole (\colorbox{yellow}{WHY?}), and some agents again "forget" what they've learned during training, and must re-learn it.
+
+We also notice that these agents are far better at recovery than in the imitation learning exercise, since here they have ample opportunity to learn how to behave in off-road situations (whereas in the imitation learning dataset, there were typically very few examples of the expert's car leaving the road, which left the agent largely unguided when something went wrong).
+
+Observing our agents' driving in test runs, we saw that their characteristic mistake was to enter turns too fast, cut across the corner (missing some reward tiles), and rejoin the road. They learn to do this manoeuvre quite well, and indeed the Q learning algorithm may be encouraging it: doing so allows the agents to avoid slowing down for the corner, and so they pick up rewards as rapidly as possible over a medium time horizon. But by the end of the episode they leave some tiles uncollected, and the clock runs down, diminishing their final reward.
+
+We also see that the 'Softmax' agents tend to drive much more cautiously, and that there is more "noise" in their actions, such as steering rapidly back and forth on straight stretches of road, just as we would expect. However, they do seem less likely to enter corners too fast than the 'Hardmax' agents. Overall, softmax action selection does not seem to be systematically better nor worse.
+
+\section{Adding History}
+
+We hypothesise that the agents may be making this corner-cutting mistake because they simply don't have a clear idea of how fast they're going from the single-frame input we've used so far. Therefore, we next implemented image history in order for the agent to better judge its speed, in two different ways:
+
+\begin{enumerate}
+	\item Adding the frame immediately prior to the current one to our state buffer, so that the input to our convnet is a $(96, 96, \textbf{2})$ image
+	
+	\item Subtracting the prior frame from the current one to produce a difference image, and processing this difference image using a separate, smaller convnet (which is merged with the first one in the fully connected layers)
+\end{enumerate}
+
+Results are shown in Figures \ref{fig:train3} and \ref{fig:test3}. We can see that difference frames are good! (\colorbox{yellow}{SAY SOMETHING MORE INTELLIGENT HERE})
+
+\begin{figure}
+  \includegraphics[width=\linewidth]{figs/racecar_train_3.png}
+  \caption{Training curves for History Frame (dark) and Difference Frame (light)}
+  \label{fig:train3}
+\end{figure}
+
+\begin{figure}
+  \includegraphics[width=\linewidth]{figs/racecar_3.png}
+  \caption{Test results for History Frame and Difference Frame}
+  \label{fig:test3}
+\end{figure}
+
+\section{Reward shaping}
+
+\colorbox{yellow}{Ingmar? describe how we did this}
+
+\section{Improving on the Difference Frame + Penalty agent}
+
+In many episodes, the Difference Frame + Penalty agent performs a perfect run, driving reasonably fast and picking up every reward tile. Good! Sometimes it still misses a few tiles, especially on sharp corners. We see if we can improve this with two modifications to the model:
+
+\begin{enumerate}
+	\item \textbf{Larger network}: Doubling the number of filters in every convolution layer, and increasing the number of units in fully connected layers by 50\%. We do this with the hypothesis that the agent may be unable to learn complex enough representations with the incumbent model to guide its actions, and in the belief that we should be protected from over-fitting by the continuous stream of new training data supplied to the gradient descent algorithm.
+	
+	\item \textbf{No frameskip}: Training with zero frameskip. We do this with the hypothesis that the agent may be learning sub-optimally when it is locked into action choices that must persist over three frames, and could learn better skills if allowed to change actions on every frame if needed. This training should, of course, take roughly three times as long.
+	
+\end{enumerate}
+
+\colorbox{yellow}{WHAT HAPPENED? TBD}
+
+\begin{figure}[h!]
+  \includegraphics[width=\linewidth]{figs/racecar_train_4.png}
+  \caption{Training curves for Large Network (xxx) and No Frameskip (xxx)}
+  \label{fig:train4}
+\end{figure}
+
+\begin{figure}[h!]
+  \includegraphics[width=\linewidth]{figs/racecar_4.png}
+  \caption{Test results for Large Network and No Frameskip}
+  \label{fig:test4}
+\end{figure}
+
+\section*{Conclusion}
+
+Say something here
+
+Final results summarised in Table \ref{table:results}
+
+\begin{table}
+  \centering
+  \caption{Final racecar testing results}
+  \label{table:results}
+  \input{figs/result_table}
+  \end{table}
+
+\section*{Acknowledgements}
+
+We would like to thank Guilherme Miotto and Baohe Zhang for all the fruitful discussions, the tutors of this course for their valuable input, and the taxpayers of Germany for funding the electricity we have consumed.
+
+%\addtolength{\textheight}{-23cm}   % This command serves to balance the column lengths
+                                  % on the last page of the document manually. It shortens
+                                  % the textheight of the last page by a suitable amount.
+                                  % This command does not take effect until the next page
+                                  % so it should come on the page before the last. Make
+                                  % sure that you do not shorten the textheight too much.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\begin{thebibliography}{99}
+
+\bibitem{aigym} AI gym car racing: \url{https://gym.openai.com/envs/CarRacing-v0/}
+
+\bibitem{repo} Exercise code: \url{https://github.com/rosea-tf/dl-lab-2018/tree/submit/exercise4_R_NR}
+
+
+
+\end{thebibliography}
+
+
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+
+
+\end{document}

@@ -11,9 +11,13 @@ class CNN():
                  num_actions,
                  lr=1e-4,
                  history_length=0,
-                 diff_history=False):
-        self._build_model(num_actions, lr, history_length, diff_history)
+                 diff_history=False,
+                 big=False):
+        
+        self.big = big  # implements largeness
 
+        self._build_model(num_actions, lr, history_length, diff_history)
+        
     def _build_model(self, num_actions, lr, history_length, diff_history):
         """
         This method creates a neural network with two hidden fully connected layers and 20 neurons each. The output layer
@@ -36,8 +40,8 @@ class CNN():
         self.targets_ = tf.placeholder(
             tf.float32, shape=[None])  # The TD target value
 
-        fc1_size = 512
-        fc2_size = 128
+        fc1_size = 512 if not self.big else 768
+        fc2_size = 128 if not self.big else 192
 
         mu = 0
         sigma = 0.1
@@ -46,7 +50,7 @@ class CNN():
         fs1, fs2, fs3 = (7, 5, 3)
 
         #filter counts
-        nf1, nf2, nf3 = (16, 32, 48)
+        nf1, nf2, nf3 = (16, 32, 48) if not self.big else (32, 48, 64)
         
         #expand network a bit, if we're using history
         if history_length > 0:
@@ -62,7 +66,7 @@ class CNN():
                 
                 #filter sizes and counts for subtracted history images
                 hfs1, hfs2, hfs3 = (7, 5, 3)
-                hnf1, hnf2, hnf3 = (8, 16, 24)
+                hnf1, hnf2, hnf3 = (8, 16, 24) if not self.big else (32, 48, 64)
                 
                 if history_length > 1:
                     # 50% more layer 1 filters for every additional frame processed
@@ -259,13 +263,14 @@ class CNNTargetNetwork(CNN):
                  lr=1e-4,
                  tau=0.01,
                  history_length=0,
-                 diff_history=False):
+                 diff_history=False,
+                 big=False):
 
         # check that the _register_associates method won't fuck us up
         num_vars_before = len(tf.trainable_variables())
 
         CNN.__init__(self, num_actions, lr, history_length,
-                     diff_history)
+                     diff_history, big)
 
         num_vars_after = len(tf.trainable_variables())
 

@@ -43,7 +43,6 @@ def doplot(data, saveto):
     # fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
     fig, ax2 = plt.subplots()
 
-    ax2.set_title('Cartpole results')
     ax2.boxplot(
         [results[key]['test']['episode_rewards'] for key, label in data],
         labels=[label for key, label in data])
@@ -54,6 +53,5 @@ def doplot(data, saveto):
     # plt.show()
 
 
-
 doplot([['1_basic', 'Default Model'], ['2_epsdecay', 'Epsilon Decay'], ['3_boltzmann', 'Boltzmann Exp\'n'], ['4_doubleqb', 'Double Q']],
-       'figs/cartpole_test.png')
+       'report/figs/cartpole_test.png')

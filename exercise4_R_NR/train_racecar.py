@@ -8,7 +8,7 @@ import os
 import json
 
 MODEL_TEST_INTERVAL = 10  # after this number of episodes, test agent with deterministic actions
-MODEL_SAVE_INTERVAL = 100  # yep
+MODEL_SAVE_INTERVAL = 25  # yep
 
 
 def state_preprocessing(state):
@@ -159,6 +159,8 @@ def train_online(name,
                  history_length=0,
                  diff_history=False,
                  apply_lane_penalty=False,
+                 skip_frames=2,
+                 big=False,
                  try_resume=False):
 
     print("AGENT: " + name)
@@ -187,6 +189,7 @@ def train_online(name,
         buffer_capacity,
         history_length,
         diff_history,
+        big,
         save_hypers=True)
 
     print("... training agent")
@@ -226,7 +229,7 @@ def train_online(name,
             softmax=False,
             do_training=True,
             rendering=False,
-            skip_frames=2,
+            skip_frames=skip_frames,
             history_length=history_length,
             diff_history=diff_history,
             apply_lane_penalty=apply_lane_penalty)
@@ -285,8 +288,8 @@ def train_online(name,
 
 def make_racecar_agent(name, model_path, lr, discount_factor,
                        batch_size, epsilon, epsilon_decay, boltzmann, tau,
-                       double_q, buffer_capacity, history_length, diff_history,
-                       save_hypers):
+                       double_q, buffer_capacity, history_length, diff_history, big=False,
+                       save_hypers=False):
 
     hypers = locals()
 
@@ -302,14 +305,16 @@ def make_racecar_agent(name, model_path, lr, discount_factor,
         num_actions=5,
         lr=lr,
         history_length=history_length,
-        diff_history=diff_history)
+        diff_history=diff_history,
+        big=big)
 
     Q_target = CNNTargetNetwork(
         num_actions=5,
         lr=lr,
         tau=tau,
         history_length=history_length,
-        diff_history=diff_history)
+        diff_history=diff_history,
+        big=big)
 
     # 2. init DQNAgent (see dqn/dqn_agent.py)
     agent = DQNAgent(
@@ -338,22 +343,27 @@ if __name__ == "__main__":
     if not os.path.exists(base_path):
         os.mkdir(base_path)
 
-    # train_online('1_basic', env)
+    train_online('1_basic', env)
 
-    # train_online('2_epsdecay', env, epsilon_decay=1e-3)
+    train_online('2_epsdecay', env, epsilon_decay=1e-3)
 
-    # train_online('3_boltzmann', env, epsilon=0.0, boltzmann=True, try_resume=True)
+    train_online('3_boltzmann', env, epsilon=0.0, boltzmann=True, try_resume=True)
 
-    #train_online('4_doubleq', env, double_q=True)
+    train_online('4_doubleq', env, double_q=True)
 
-    # train_online('5_nodiscount', env, discount_factor=1.0)
+    train_online('5_nodiscount', env, discount_factor=1.0)
 
-    # train_online('6_negdiscount', env, discount_factor=1.01)
+    train_online('6_negdiscount', env, discount_factor=1.01)
 
-    #train_online('7_history', env, history_length=1, try_resume=True)
+    train_online('7_history', env, history_length=1, try_resume=True)
 
-    #train_online('8_difframe', env, history_length=1, diff_history=True, try_resume=True)
+    train_online('8_difframe', env, history_length=1, diff_history=True, try_resume=True)
 
     train_online('9_diffpenalty', env, history_length=1, diff_history=True, apply_lane_penalty=True, epsilon_decay=1e-3, try_resume=True)
+
+    train_online('10_dpbig', env, history_length=1, diff_history=True, apply_lane_penalty=True, epsilon_decay=1e-3, big=True, try_resume=True)
+
+    train_online('12_dpnoskip', env, history_length=1, diff_history=True, apply_lane_penalty=True, epsilon_decay=1e-3, skip_frames=0, num_episodes=1000, try_resume=True)
+
 
     env.close()

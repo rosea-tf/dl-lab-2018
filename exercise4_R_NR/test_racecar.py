@@ -10,13 +10,13 @@ import argparse
 import tensorflow as tf
 
 base_path = os.path.join('.', 'racecar')
-n_test_episodes = 15
-rendering = True
 
-np.random.seed(0)
-
-
-def evaluate_agent(model_name, softmax=False):
+def evaluate_agent(model_name, n_test_episodes=30, rendering=False, softmax=False):
+    
+    np.random.seed(0)
+    tf.set_random_seed(0)
+    # gym is seeded further down
+    
     print ("MODEL: " + model_name + "" if not softmax else " (softmax))")
 
     tf.reset_default_graph() #this seems to help consecutive testing
@@ -27,7 +27,7 @@ def evaluate_agent(model_name, softmax=False):
     
     if os.path.exists(os.path.join(model_path, results_fn)):
         print ("\t... results exist already! skipping.")
-        return
+        #return
 
     # get hypers from the model in this folder
     with open(os.path.join(model_path, "hypers.json"), "r") as fh:
@@ -38,9 +38,12 @@ def evaluate_agent(model_name, softmax=False):
         hypers['history_length'] = 0
     if 'diff_history' not in hypers.keys():
         hypers['diff_history'] = False
+    if 'big' not in hypers.keys():
+        hypers['big'] = False
 
     env = gym.make("CarRacing-v0").unwrapped
-
+    env.seed(0)
+    
     # some of these hypers won't matter once training is over, but anyway...
 
     if not softmax:
@@ -58,6 +61,7 @@ def evaluate_agent(model_name, softmax=False):
             buffer_capacity=hypers['buffer_capacity'],
             history_length=hypers['history_length'],
             diff_history=hypers['diff_history'],
+            big=hypers['big'],
             save_hypers=False)
     else:
             agent = make_racecar_agent(
@@ -74,6 +78,7 @@ def evaluate_agent(model_name, softmax=False):
             buffer_capacity=hypers['buffer_capacity'],
             history_length=hypers['history_length'],
             diff_history=hypers['diff_history'],
+            big=hypers['big'],
             save_hypers=False)
 
     # retrieve weights
