@@ -177,7 +177,7 @@ All seeds (in Numpy, TensorFlow and the Gym environment) were set to 0 to allow 
   \label{fig:test2}
 \end{figure}
 
-Figure \ref{fig:test2} shows our agents doing reasonably well already, with many average scores over 800. Notably, Boltzmann exploration does much worse here than in CartPole (\colorbox{yellow}{WHY?}), and some agents again "forget" what they've learned during training, and must re-learn it.
+Figure \ref{fig:test2} shows our agents doing reasonably well already, with many average scores over 800. Notably, Boltzmann exploration does much worse here than in CartPole. We assume the reason is that in Cartpole, for every state there is an unambigouos best action, whereas in the racecar environment, there are often several actions which are equally good in the short term. Once the agent has learned the best action, Boltzmann exploration will allow the agent to exploit the best action with certainty, which is of course difficult in racecar. Some agents again "forget" what they've learned during training, and must re-learn it.
 
 We also notice that these agents are far better at recovery than in the imitation learning exercise, since here they have ample opportunity to learn how to behave in off-road situations (whereas in the imitation learning dataset, there were typically very few examples of the expert's car leaving the road, which left the agent largely unguided when something went wrong).
 
@@ -195,7 +195,7 @@ We hypothesise that the agents may be making this corner-cutting mistake because
 	\item Subtracting the prior frame from the current one to produce a difference image, and processing this difference image using a separate, smaller convnet (which is merged with the first one in the fully connected layers)
 \end{enumerate}
 
-Results are shown in Figures \ref{fig:train3} and \ref{fig:test3}. We can see that difference frames are good! (\colorbox{yellow}{SAY SOMETHING MORE INTELLIGENT HERE})
+Results are shown in Figures \ref{fig:train3} and \ref{fig:test3}. The model trained with an additional difference frame as input excibited better acceleration and braking behaviour, and it also showed a reduced tendency to cut corners. It is therefore reasonable to assume that giving the model access to speed information helps the agent learn this improved behaviour.
 
 \begin{figure}
   \includegraphics[width=\linewidth]{figs/racecar_train_3.png}
