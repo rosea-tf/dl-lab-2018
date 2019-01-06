@@ -57,8 +57,7 @@
 \title{\LARGE \bf
 Deep Learning Lab Exercise 4: Reinforcement Learning}
 
-\author{[AUTHOR'S NAME REDACTED], Alex Rose}
-
+\author{Ingmar Baetge, Alex Rose}
 
 \begin{document}
 \sisetup{quotient-mode=fraction,per-mode=symbol, mode=math}
@@ -66,7 +65,6 @@ Deep Learning Lab Exercise 4: Reinforcement Learning}
 \maketitle
 %\thispagestyle{empty}
 %\pagestyle{empty}
-
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -106,7 +104,7 @@ Now onto car racing. Again. We reused the same Q learning algorithm, code, and h
 \begin{itemize}
 	\item Images preprocessed to greyscale, as per the provided code
 
-	\item A deep convnet, as described in Table \ref{table:agent1}.
+	\item A deep ConvNet, as described in Table \ref{table:agent1}.
 
   \item Continuous actions discretised simply to \textit{Nothing, Left, Right, Accelerate, Brake}
 
@@ -174,9 +172,9 @@ We also see that the 'Softmax' agents tend to drive much more cautiously, and th
 We hypothesise that the agents may be making this corner-cutting mistake because they simply don't have a clear idea of how fast they're going from the single-frame input we've used so far. Therefore, we next implemented image history in order for the agent to better judge its speed, in two different ways:
 
 \begin{enumerate}
-	\item Adding the frame immediately prior to the current one to our state buffer, so that the input to our convnet is a $(96, 96, \textbf{2})$ image
+	\item Adding the frame immediately prior to the current one to our state buffer, so that the input to our ConvNet is a $(96, 96, \textbf{2})$ image
 
-	\item Subtracting the prior frame from the current one to produce a difference image, and processing this difference image using a separate, smaller convnet (which is merged with the first one in the fully connected layers)
+	\item Subtracting the prior frame from the current one to produce a difference image, and processing this difference image using a separate, smaller ConvNet (which is merged with the first one in the fully connected layers)
 \end{enumerate}
 
 Results are shown in Figures \ref{fig:train5678} and \ref{fig:test3}. The model trained with an additional difference frame as input exhibited better acceleration and braking behaviour, and it also showed a reduced tendency to cut corners. It is therefore reasonable to assume that giving the model access to speed information helps the agent learn this improved behaviour.
@@ -193,17 +191,17 @@ We observed that the agent would cut corners quite often - it seemed to learn th
 
 We decided to introduce some reward shaping into the environment - we added two virtual sensors by reading two pixels in front of the car on every step. If these sensors both detect the grass color, a negative reward of $-1$ is added to the total reward, effectively punishing the agent quite strongly for going off road. By adding this simple reward shaping, the agent exhibited less corner cutting, as this behaviour is now penalized. See figure \ref{fig:reward_shaping} for the location of the sensor pixels.
 
-Of course, by implementing reward shaping we have slightly modified the original problem, and encoded some expert guidance or knowledge into the reward function. So in a sense, the Q-learning algorithm is no longer as 'pure'. Also, the question remains: why was reward-shaping necessary? That is, why did Q-learning reward short term gains from corner cutting at the cost of a larger long-term performance hit? The obvious answer is the discount factor of $0.99$ that we used: for example, a missed reward 500 timesteps into the future would be discounted by a factor of $0.99^500 \approx \frac{1}{152}$. We did also experiment with a discount factor closer to and equal to one, but this led to worse performance.
+Of course, by implementing reward shaping we have slightly modified the original problem, and encoded some expert guidance or knowledge into the reward function. So in a sense, the Q-learning algorithm is no longer as 'pure'. Also, the question remains: why was reward-shaping necessary? That is, why did Q-learning reward short term gains from corner cutting at the cost of a larger long-term performance hit? The obvious answer is the discount factor of $0.99$ that we used: for example, a missed reward 500 timesteps into the future would be discounted by a factor of $0.99^{500} \approx \frac{1}{152}$. We did also experiment with a discount factor closer to and equal to one, but this led to worse performance.
 
 \begin{figure}
   \includegraphics[width=\linewidth]{figs/reward_shaping_closeup.png}
-  \caption{Sensor positions for reward shaping: Detecting grass in the two white locations (pixels $(44, 68)$ and $(51,68)$) was penalized with a negative reward of $-4$. As the car position is almost static, the sensor locations were hardcoded.}.
+  \caption{Sensor positions for reward shaping: Detecting grass in the two white locations (pixels $(44, 68)$ and $(51,68)$) was penalized with a negative reward of $-1$. As the car position is almost static, the sensor locations were hardcoded.}.
   \label{fig:reward_shaping}
 \end{figure}
 
 \section{Improving on the Difference Frame + Penalty agent}
 
-In many episodes, the Difference Frame + Penalty agent performs a perfect run, driving reasonably fast and picking up every reward tile. Sometimes it still misses a few tiles, especially on sharp corners. We tried improving this with one final model, where we doubled the number of filters in every convolution layer, and increased the number of units in fully connected layers by 50\%. We did this with the hypothesis that the agent may have been unable to learn complex enough representations with the incumbent model to guide its actions, and in the belief that the larger model should be protected from over-fitting by the continuous stream of new training data supplied to the gradient descent algorithm. Unfortunately, as can be seen in \ref{fig:train5678}, the larger model was not successful.
+In many episodes, the Difference Frame + Penalty agent performs a perfect run, driving reasonably fast and picking up every reward tile. Sometimes it still misses a few tiles, especially on sharp corners. We tried improving this with one final model, where we doubled the number of filters in every convolution layer, and increased the number of units in fully connected layers by 50\%. We did this with the hypothesis that the agent may have been unable to learn complex enough representations with the incumbent model to guide its actions, and in the belief that the larger model should be protected from over-fitting by the continuous stream of new training data supplied to the gradient descent algorithm. Unfortunately, as can be seen in Figure \ref{fig:test4}, the larger model was not successful.
 
 \begin{figure}
   \includegraphics[width=\linewidth]{figs/racecar_train_5678.png}
@@ -219,7 +217,7 @@ In many episodes, the Difference Frame + Penalty agent performs a perfect run, d
 
 \section*{Conclusion}
 
-Our final results are summarised in Table \ref{table:results}. The best-performing agent was the Difference Frame model with an Off-trace Penalty (using Softmax action interpretation), and almost as good was the Epsilon-Annealed model (using standard action interpretation), in which no reward shaping was required.
+Our final results are summarised in Table \ref{table:results}. The best-performing agent was the Difference Frame model with an off-track Penalty (using Softmax action interpretation), and almost as good was the Epsilon-Annealed model (using standard action interpretation), in which no reward shaping was required.
 
 \begin{table}
   \centering
@@ -241,30 +239,13 @@ We would like to thank Guilherme Miotto and Baohe Zhang for all the fruitful dis
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-
 \begin{thebibliography}{99}
 
 \bibitem{aigym} AI gym car racing: \url{https://gym.openai.com/envs/CarRacing-v0/}
 
 \bibitem{repo} Exercise code: \url{https://github.com/rosea-tf/dl-lab-2018/tree/submit/exercise4_R_NR}
 
-
-
 \end{thebibliography}
 
-
-
-
-
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-
-
-
-
 \end{document}
