@@ -88,11 +88,11 @@ We also implemented the following bonus features:
 
 \begin{itemize}
 	\item \textbf{Epsilon Annealing}: in which our probability $\epsilon$ of selecting a random (non-optimal) action is reduced from its starting value by a factor of $3.33 \times 10^{-4}$ after each episode. This gradually shifts the agent's priorities from exploration to exploitation, as time goes on.
-	
+
 	\item \textbf{Boltzmann Exploration}, where instead of selecting randomly with probability $\epsilon$ and optimally with probability $1 - \epsilon$, the agent samples an action according to the SoftMax of its action predictions (with optional SoftMax temperature parameter). This allows the agent to shift from exploration to exploitation only when it becomes more certain about its predicted action-values.
-	
+
 	\item \textbf{Double-Q learning}, where actions are selected using the \textit{current} network, but still evaluated using the \textit{target} network. This decorrelates the noise in the two networks, theoretically avoiding overestimation bias in the $Q$ function.
-	
+
 \end{itemize}
 
 Training was over 1,600 episodes with Adam as our optimiser, learning rate $10^{-4}$, batch size 64, buffer capacity of $100,000$, target network update parameter $\tau=0.01$, and $\epsilon=0.1$ initially. We see that Boltzmann Exploration creates a high performance agent much more quickly than Basic or Double Q Learning, presumably because in the early episodes when the agent has little idea of the best move, Boltzmann encourages it to explore \textit{much} more than a fixed epsilon parameter would allow. Epsilon Annealing, on the other hand, starts out very promisingly, but has a disastrous spell later and forgets everything useful it has learned (Figure \ref{fig:train0}). We then tested each agent over 100 episodes, and found that the Boltzmann agent has learned to play perfectly with an average score over 1000, and the Double Q agent, though less impressive, has still solved the problem, with an average score over 200 (Figure \ref{fig:test0}). We should note that these results are very high-variance; in previous runs, we saw agents with identical configurations having very different training curves. Therefore, they should not be taken (for example) as definitive proof that Boltzmann exploration is the best method to solve this problem.
@@ -115,15 +115,15 @@ Now onto car racing. Again. We reused the same Q learning algorithm, code, and h
 
 \begin{itemize}
 	\item Images preprocessed to greyscale, as per the provided code
-	
+
 	\item A deep convnet, as described in Table \ref{table:agent1}.
-	
+
   \item Continuous actions discretised simply to \textit{Nothing, Left, Right, Accelerate, Brake}
-  
+
   \item A replay buffer of size $500,000$.
-  
+
   \item Frameskip of 2 during training (i.e. every third frame is seen and acted upon, and actions persist over the next two frames). At test time, no frameskip is used.
-	
+
 \end{itemize}
 
 \begin{table}
@@ -133,11 +133,11 @@ Now onto car racing. Again. We reused the same Q learning algorithm, code, and h
   \begin{tabular}{ll}
   Layer & Parameters \\ \hline
   Convolution 1 / ReLU & Filters: 16, Size: 7 \\
-  Max Pooling & Size: 2, Stride: 1\\
+  Max Pooling & Size: 2, Stride: 2\\
   Convolution 2 / ReLU & Filters: 32, Size: 5 \\
-  Max Pooling & Size: 2, Stride: 1\\
+  Max Pooling & Size: 2, Stride: 2\\
   Convolution 3 / ReLU & Filters: 48, Size: 3 \\
-  Max Pooling & Size: 2, Stride: 1\\
+  Max Pooling & Size: 2, Stride: 2\\
   FC layer 1 / ReLU & 512 units\\
   FC layer 2 / ReLU & 128 units\\
   Output & 5 units\\
@@ -191,7 +191,7 @@ We hypothesise that the agents may be making this corner-cutting mistake because
 
 \begin{enumerate}
 	\item Adding the frame immediately prior to the current one to our state buffer, so that the input to our convnet is a $(96, 96, \textbf{2})$ image
-	
+
 	\item Subtracting the prior frame from the current one to produce a difference image, and processing this difference image using a separate, smaller convnet (which is merged with the first one in the fully connected layers)
 \end{enumerate}
 
@@ -211,7 +211,15 @@ Results are shown in Figures \ref{fig:train3} and \ref{fig:test3}. We can see th
 
 \section{Reward shaping}
 
-\colorbox{yellow}{Ingmar? describe how we did this}
+We observed that the agent would cut corners quite often - it seemed to learn that there is more benefit in keeping a higher speed, as it will lead more short term reward, conflicting with the long term goal of collecting every tile of the road, which only becomes relevant towards the end of each episode.
+
+We decided to introduce some reward shaping into the environment - we added two virtual sensors by reading two pixels in front of the car on every step. If these sensors detect the grass color, a negative reward of $-4$ is added to the total reward, effectively punishing the agent quite strongly for going off road. By adding this simple reward shaping, the agent excibited less corner cutting, as this behaviour is now penalized. See figure \ref{fig:reward_shaping} for the location of the sensor pixels.
+
+\begin{figure}
+  \includegraphics[width=\linewidth]{figs/reward_shaping_closeup.png}
+  \caption{Sensor positions for reward shaping: Detecting grass in the two white locations (pixels $(44, 68)$ and $(51,68)$) was penalized with a negative reward of $-4$. As the car position is almost static, the sensor locations were hardcoded.}.
+  \label{fig:reward_shaping}
+\end{figure}
 
 \section{Improving on the Difference Frame + Penalty agent}
 
@@ -219,9 +227,9 @@ In many episodes, the Difference Frame + Penalty agent performs a perfect run, d
 
 \begin{enumerate}
 	\item \textbf{Larger network}: Doubling the number of filters in every convolution layer, and increasing the number of units in fully connected layers by 50\%. We do this with the hypothesis that the agent may be unable to learn complex enough representations with the incumbent model to guide its actions, and in the belief that we should be protected from over-fitting by the continuous stream of new training data supplied to the gradient descent algorithm.
-	
+
 	\item \textbf{No frameskip}: Training with zero frameskip. We do this with the hypothesis that the agent may be learning sub-optimally when it is locked into action choices that must persist over three frames, and could learn better skills if allowed to change actions on every frame if needed. This training should, of course, take roughly three times as long.
-	
+
 \end{enumerate}
 
 \colorbox{yellow}{WHAT HAPPENED? TBD}
