@@ -1,1 +1,0 @@
-{"history_length": 1, "buffer_capacity": 500000.0, "model_path": "./racecar/11_dpbignoskip", "big": true, "batch_size": 64, "save_hypers": true, "tau": 0.01, "diff_history": true, "epsilon": 0.05, "double_q": false, "discount_factor": 0.99, "boltzmann": false, "name": "11_dpbignoskip", "lr": 0.0001, "epsilon_decay": 0.001}
