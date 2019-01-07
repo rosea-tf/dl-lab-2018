@@ -70,7 +70,7 @@ Deep Learning Lab Exercise 4: Reinforcement Learning}
 
 \section{CartPole}
 
-We begin the classic control task of CartPole. Instead of imitation learning where the agent analyses expert play to learn the relationship between states and ideal actions (as in Exercise 3), here we use Q-Learning, where the agent samples from a palette of actions in each state, and gradually learns to paramaterise a function $Q(State, Action) = Reward$. In the CartPole instance our state is a 4-dimensional vector; our function is a simple neural network consisting of two fully-connected 20-unit hidden layers with ReLU activation; and we have two possible actions: \textit{Left} and \textit{Right}.
+We begin the classic control task of CartPole. Instead of imitation learning where the agent analyses expert play to learn the relationship between states and ideal actions (as in Exercise 3), here we use Q-Learning, where the agent samples from a palette of actions in each state, and gradually learns to parameterise a function $Q(State, Action) = Value$. In the CartPole instance our state is a 4-dimensional vector; our function is a simple neural network of two fully-connected 20-unit hidden layers with ReLU activation; and we have two possible actions: \textit{Left} and \textit{Right}.
 
 We also implemented the bonus features:
 
